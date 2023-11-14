@@ -1,0 +1,44 @@
+{
+	"name": "PYTORCH",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": { "LIGHTNING_VERSION": "2.1.0", "PYTHON_VERSION": "3.10", "PYTORCH_VERSION": "2.1", "CUDA_VERSION": "12.1.0"}
+	},
+
+	"mounts": [
+		"type=bind,source=/home/${localEnv:USER}/.ssh/codecommit_rsa,target=/home/vscode/.ssh/codecommit_rsa,readonly",
+		"type=bind,source=/home/${localEnv:USER}/.ssh/codecommit_rsa.pub,target=/home/vscode/.ssh/codecommit_rsa.pub,readonly",
+		"type=bind,source=/home/${localEnv:USER}/.ssh/config,target=/home/vscode/.ssh/config,readonly",
+		"type=bind,source=/home/${localEnv:USER}/.ssh/known_hosts,target=/home/vscode/.ssh/known_hosts"
+	],
+
+	"runArgs": [
+		"--gpus",
+		"all"
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	"postCreateCommand": "sudo chown -R vscode:vscode /workspaces",
+
+	"customizations": {
+		"vscode": {
+		  "extensions": ["github.copilot", "github.copilot-chat"]
+		}
+	  },
+
+	"features": {
+		"common": {
+			"username": "automatic",
+			"uid": "automatic",
+			"gid": "automatic",
+			"installZsh": true,
+			"installOhMyZsh": true,
+			"upgradePackages": true,
+			"nonFreePackages": false
+		},
+		"git": "latest"
+	},
+	"remoteUser": "vscode"
+}
