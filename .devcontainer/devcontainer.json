@@ -25,7 +25,14 @@
 
 	"customizations": {
 		"vscode": {
-		  "extensions": ["github.copilot", "github.copilot-chat"]
+		  "extensions": [
+			"github.copilot",
+			"github.copilot-chat",
+			"ms-python.python",
+			"redhat.vscode-yaml",
+			"eamodio.gitlens",
+			"bierner.markdown-mermaid"
+		  ]
 		}
 	  },
 

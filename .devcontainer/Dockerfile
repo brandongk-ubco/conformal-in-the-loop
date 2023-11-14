@@ -4,3 +4,8 @@ ARG CUDA_VERSION=12.1.0
 ARG LIGHTNING_VERSION=2.1.0
 
 FROM pytorchlightning/pytorch_lightning:${LIGHTNING_VERSION}-py${PYTHON_VERSION}-torch${PYTORCH_VERSION}-cuda${CUDA_VERSION}
+
+RUN python -m pip install --upgrade pip
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
