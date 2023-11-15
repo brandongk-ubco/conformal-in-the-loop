@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as L
 from .model import get_model
 import os
+import numpy as np
 
 @cli.command()
 def train():
@@ -17,5 +18,5 @@ def train():
 
     trainer = L.Trainer()
 
-    model = get_model()
+    model = get_model([i for i in val_set])
     trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
