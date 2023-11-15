@@ -2,3 +2,5 @@ torchvision==0.16.0
 torch-tb-profiler
 typer
 mapie
+isort
+black
