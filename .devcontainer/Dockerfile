@@ -9,3 +9,5 @@ RUN python -m pip install --upgrade pip
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+ENV PATH_DATASETS=/workspaces/confident-augmentation/datasets/

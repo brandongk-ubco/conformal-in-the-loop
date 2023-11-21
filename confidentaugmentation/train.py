@@ -1,50 +1,28 @@
-import os
+import sys
 
-import numpy as np
 import pytorch_lightning as L
-from torch.utils.data import DataLoader
-from torchvision import transforms
-from torchvision.datasets import MNIST
+from monai.networks.nets import EfficientNetBN
 
 from confidentaugmentation import cli
+from confidentaugmentation.data.MNist import MNISTDataModule
 
-from .model import get_model
+from .model.ConformalTrainer import ConformalTrainer
 
 
 @cli.command()
 def train():
-    transform = transforms.ToTensor()
-    train_set = MNIST(
-        root="/workspaces/confident-augmentation/datasets/",
-        download=True,
-        train=True,
-        transform=transform,
-    )
-    val_set = MNIST(
-        root="/workspaces/confident-augmentation/datasets/",
-        download=True,
-        train=False,
-        transform=transform,
+    L.seed_everything(42, workers=True)
+
+    dm = MNISTDataModule()
+
+    net = EfficientNetBN(
+        "efficientnet-b0", in_channels=dm.dims[0], num_classes=dm.num_classes
     )
 
-    train_loader = DataLoader(
-        train_set,
-        num_workers=os.cpu_count(),
-        shuffle=True,
-        pin_memory=True,
-        batch_size=32,
-        persistent_workers=True,
-    )
-    val_loader = DataLoader(
-        val_set,
-        num_workers=os.cpu_count(),
-        shuffle=True,
-        pin_memory=True,
-        batch_size=32,
-        persistent_workers=True,
+    model = ConformalTrainer(net)
+
+    trainer = L.Trainer(
+        num_sanity_val_steps=sys.maxsize, max_epochs=20, deterministic=True
     )
 
-    trainer = L.Trainer(num_sanity_val_steps=len(val_loader))
-
-    model = get_model()
-    trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    trainer.fit(model=model, datamodule=dm)

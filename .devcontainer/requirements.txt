@@ -1,4 +1,5 @@
 torchvision==0.16.0
+monai==1.3.0
 torch-tb-profiler
 typer
 mapie
