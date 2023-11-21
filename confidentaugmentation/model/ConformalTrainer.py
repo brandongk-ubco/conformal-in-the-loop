@@ -8,16 +8,17 @@ from torchmetrics.classification.accuracy import Accuracy
 
 
 class ConformalTrainer(L.LightningModule):
-    def __init__(self, model, selectively_backpropagate=False):
+    def __init__(self, model, num_classes, selectively_backpropagate=False, mapie_alpha=0.10):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
 
-        self.classes_ = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.classes_ = range(num_classes)
 
         self.accuracy = Accuracy(task="multiclass", num_classes=len(self.classes_))
 
         self.selectively_backpropagate = selectively_backpropagate
+        self.mapie_alpha = mapie_alpha
 
     def __sklearn_is_fitted__(self):
         return True
@@ -58,7 +59,7 @@ class ConformalTrainer(L.LightningModule):
         )
 
         num_classes = (
-            self.mapie_classifier.predict(range(len(self.cp_examples)), alpha=[0.10])[1]
+            self.mapie_classifier.predict(range(len(self.cp_examples)), alpha=[self.mapie_alpha])[1]
             .sum(axis=1)
             .squeeze()
         )
