@@ -19,6 +19,11 @@ class ConformalTrainer(L.LightningModule):
 
         self.accuracy = Accuracy(task="multiclass", num_classes=len(self.classes_))
 
+        self.atypical_percentage = MeanMetric()
+        self.uncertain_percentage = MeanMetric()
+        self.confused_percentage = MeanMetric()
+        self.realized_percentage = MeanMetric()
+
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
 
@@ -48,10 +53,10 @@ class ConformalTrainer(L.LightningModule):
             raise ValueError("Input must be 2, 3 or 4 dimensional")
 
     def on_train_epoch_start(self) -> None:
-        self.atypical_percentage = MeanMetric().to(self.device)
-        self.uncertain_percentage = MeanMetric().to(self.device)
-        self.confused_percentage = MeanMetric().to(self.device)
-        self.realized_percentage = MeanMetric().to(self.device)
+        self.atypical_percentage.reset()
+        self.uncertain_percentage.reset()
+        self.confused_percentage.reset()
+        self.realized_percentage.reset()
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -128,6 +133,7 @@ class ConformalTrainer(L.LightningModule):
         self.log("val_loss", test_loss, on_step=False, on_epoch=True)
 
     def on_validation_epoch_start(self) -> None:
+        self.accuracy.reset()
         self.cp_examples = []
 
     def on_validation_epoch_end(self) -> None:
