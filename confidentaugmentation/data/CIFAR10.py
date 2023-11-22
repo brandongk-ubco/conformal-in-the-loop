@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, random_split
-from torchmetrics.functional import accuracy
 from torchvision import transforms
 
 # Note - you must have torchvision installed for this example
@@ -13,6 +12,7 @@ from torchvision.datasets import CIFAR10
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
+
 
 class CIFAR10DataModule(L.LightningDataModule):
     def __init__(self, data_dir: str = PATH_DATASETS):
@@ -41,7 +41,9 @@ class CIFAR10DataModule(L.LightningDataModule):
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.cifar_test = CIFAR10(self.data_dir, train=False, transform=self.transform)
+            self.cifar_test = CIFAR10(
+                self.data_dir, train=False, transform=self.transform
+            )
 
     def train_dataloader(self):
         return DataLoader(
@@ -72,5 +74,3 @@ class CIFAR10DataModule(L.LightningDataModule):
             batch_size=BATCH_SIZE,
             persistent_workers=True,
         )
-
-    

@@ -8,7 +8,9 @@ from torchmetrics.classification.accuracy import Accuracy
 
 
 class ConformalTrainer(L.LightningModule):
-    def __init__(self, model, num_classes, selectively_backpropagate=False, mapie_alpha=0.10):
+    def __init__(
+        self, model, num_classes, selectively_backpropagate=False, mapie_alpha=0.10
+    ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
@@ -59,7 +61,9 @@ class ConformalTrainer(L.LightningModule):
         )
 
         num_classes = (
-            self.mapie_classifier.predict(range(len(self.cp_examples)), alpha=[self.mapie_alpha])[1]
+            self.mapie_classifier.predict(
+                range(len(self.cp_examples)), alpha=[self.mapie_alpha]
+            )[1]
             .sum(axis=1)
             .squeeze()
         )
