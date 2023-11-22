@@ -8,11 +8,13 @@ from confidentaugmentation import cli
 from confidentaugmentation.data import AugmentedCIFAR10DataModule
 
 from .model.ConformalTrainer import ConformalTrainer
+import torch
 
 
 @cli.command()
 def train(selectively_backpropagate: bool = False, mapie_alpha: float = 0.10):
     L.seed_everything(42, workers=True)
+    torch.set_float32_matmul_precision('medium')
 
     # dm = MNISTDataModule()
     dm = AugmentedCIFAR10DataModule()

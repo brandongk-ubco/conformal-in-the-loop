@@ -48,6 +48,7 @@ class ConformalTrainer(L.LightningModule):
             raise ValueError("Input must be 2, 3 or 4 dimensional")
 
     def on_train_epoch_start(self) -> None:
+        self.atypical_percentage = MeanMetric().to(self.device)
         self.uncertain_percentage = MeanMetric().to(self.device)
         self.confused_percentage = MeanMetric().to(self.device)
         self.realized_percentage = MeanMetric().to(self.device)
@@ -71,28 +72,32 @@ class ConformalTrainer(L.LightningModule):
         predicted = y_hat.argmax(axis=1)
         correct = predicted == y
 
+        atypical = torch.tensor(num_classes == 0).to(device=self.device)
         realized = torch.logical_and(
             correct, torch.tensor(num_classes == 1).to(device=self.device)
         )
         confused = torch.logical_and(
             ~correct, torch.tensor(num_classes == 1).to(device=self.device)
         )
-        uncertain = torch.tensor(num_classes != 1).to(device=self.device)
+        uncertain = torch.tensor(num_classes > 1).to(device=self.device)
 
+        atypical_percentage = atypical.sum() / len(atypical)
         realized_percentage = realized.sum() / len(realized)
         confused_percentage = confused.sum() / len(confused)
         uncertain_percentage = uncertain.sum() / len(uncertain)
 
+        self.atypical_percentage(atypical_percentage)
         self.realized_percentage(realized_percentage)
         self.confused_percentage(confused_percentage)
         self.uncertain_percentage(uncertain_percentage)
 
         torch.testing.assert_close(
-            realized_percentage + confused_percentage + uncertain_percentage,
+            atypical_percentage + realized_percentage + confused_percentage + uncertain_percentage,
             torch.tensor(1.0).to(self.device),
         )
 
         metrics = {
+            "atypical": self.atypical_percentage.compute(),
             "uncertain": self.uncertain_percentage.compute(),
             "confused": self.confused_percentage.compute(),
             "realized": self.realized_percentage.compute(),
