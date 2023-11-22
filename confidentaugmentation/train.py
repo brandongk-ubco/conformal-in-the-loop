@@ -1,6 +1,7 @@
 import sys
 
 import pytorch_lightning as L
+from pytorch_lightning.callbacks import EarlyStopping
 from monai.networks.nets import EfficientNetBN
 
 from confidentaugmentation import cli
@@ -27,8 +28,15 @@ def train(selectively_backpropagate: bool = False, mapie_alpha: float = 0.10):
         mapie_alpha=mapie_alpha,
     )
 
+    callbacks = [
+        EarlyStopping(monitor="val_loss", mode="min", patience=10)
+    ]
+
     trainer = L.Trainer(
-        num_sanity_val_steps=sys.maxsize, max_epochs=20, deterministic=True
+        num_sanity_val_steps=sys.maxsize,
+        max_epochs=sys.maxsize,
+        deterministic=True,
+        callbacks=callbacks,
     )
 
     trainer.fit(model=model, datamodule=dm)

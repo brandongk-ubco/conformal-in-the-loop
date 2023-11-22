@@ -1,8 +1,8 @@
 import os
 from typing import Any, Tuple
 
-import torch
 import albumentations as A
+import torch
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 
@@ -27,7 +27,7 @@ class AugmentedCIFAR10(CIFAR10):
             augmented = self.augments(image=img.numpy(), target=target)
             img = torch.tensor(augmented["image"], dtype=img.dtype)
             target = augmented["target"]
-            
+
         return img, target
 
 

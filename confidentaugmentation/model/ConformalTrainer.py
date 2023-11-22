@@ -132,7 +132,16 @@ class ConformalTrainer(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.2,
+            patience=5,
+            min_lr=1e-6,
+            verbose=True
+        )
+
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
 
 
 __all__ = ["get_model"]
