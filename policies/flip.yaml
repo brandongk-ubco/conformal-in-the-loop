@@ -1,0 +1,13 @@
+---
+__version__: 1.1.0
+transform:
+  __class_fullname__: Compose
+  p: 1
+  transforms:
+    - __class_fullname__: VerticalFlip
+      p: 0.50
+    - __class_fullname__: HorizontalFlip
+      p: 0.50
+  bbox_params:
+  keypoint_params:
+  additional_targets: {}

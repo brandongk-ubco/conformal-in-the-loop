@@ -33,17 +33,15 @@ class AugmentedCIFAR10(CIFAR10):
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
-
 class AugmentedCIFAR10DataModule(CIFAR10DataModule):
     augments = None
 
-    def __init__(self, data_dir: str = PATH_DATASETS):
+    def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
         super().__init__(data_dir=data_dir)
 
-        augment_policy = os.path.join(data_dir, "policies", "cifar10.yaml")
-        assert os.path.exists(augment_policy)
+        assert os.path.exists(augmentation_policy_path)
 
-        self.augments = A.load(augment_policy, data_format="yaml")
+        self.augments = A.load(augmentation_policy_path, data_format="yaml")
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
