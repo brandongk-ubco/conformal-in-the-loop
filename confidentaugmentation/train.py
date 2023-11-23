@@ -38,7 +38,7 @@ def train(
     )
 
     callbacks = [
-        # EarlyStopping(monitor="accuracy", mode="max", patience=10),
+        EarlyStopping(monitor="val_realized", mode="max", patience=20),
         LearningRateMonitor(logging_interval="step"),
     ]
 
@@ -53,9 +53,10 @@ def train(
     trainer = L.Trainer(
         logger=logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=100,
+        max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
+        log_every_n_steps=10,
     )
 
     trainer.fit(model=model, datamodule=dm)

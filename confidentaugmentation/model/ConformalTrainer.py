@@ -9,7 +9,13 @@ from torchmetrics.classification.accuracy import Accuracy
 
 class ConformalTrainer(L.LightningModule):
     def __init__(
-        self, model, num_classes, selectively_backpropagate=False, mapie_alpha=0.10
+        self,
+        model,
+        num_classes,
+        selectively_backpropagate=False,
+        mapie_alpha=0.10,
+        warmup_epochs=3,
+        lr=1e-3,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -26,6 +32,8 @@ class ConformalTrainer(L.LightningModule):
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
+        self.warmup_epochs = warmup_epochs
+        self.lr = lr
 
     def __sklearn_is_fitted__(self):
         return True
@@ -130,9 +138,10 @@ class ConformalTrainer(L.LightningModule):
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
         )
 
-        self.accuracy(y_hat, y)
+        self.val_labels += list(y.detach().cpu().numpy())
 
-        self.log("accuracy", self.accuracy, on_step=False, on_epoch=True)
+        self.accuracy(y_hat, y)
+        self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
         self.log("val_loss", test_loss, on_step=False, on_epoch=True)
 
@@ -140,6 +149,7 @@ class ConformalTrainer(L.LightningModule):
         super().on_validation_epoch_start()
         self.accuracy.reset()
         self.cp_examples = []
+        self.val_labels = []
 
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
@@ -147,38 +157,73 @@ class ConformalTrainer(L.LightningModule):
             estimator=self, method="score", cv="prefit"
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
 
+        conformal_sets = self.mapie_classifier.predict(
+            range(len(self.cp_examples)), alpha=[self.mapie_alpha]
+        )[1]
+
+        num_classes = conformal_sets.sum(axis=1).squeeze()
+
+        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
+
+        correct = conformal_predictions == self.val_labels
+
+        atypical = num_classes == 0
+        realized = np.logical_and(correct, num_classes == 1)
+        confused = np.logical_and(~correct, num_classes == 1)
+        uncertain = num_classes > 1
+
+        atypical_percentage = atypical.sum() / len(atypical)
+        realized_percentage = realized.sum() / len(realized)
+        confused_percentage = confused.sum() / len(confused)
+        uncertain_percentage = uncertain.sum() / len(uncertain)
+
+        metrics = {
+            "val_atypical": atypical_percentage,
+            "val_uncertain": uncertain_percentage,
+            "val_confused": confused_percentage,
+            "val_realized": realized_percentage,
+        }
+
+        self.log_dict(
+            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
+        )
+
     def configure_optimizers(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-
-        lr = 1e-3
-        train_epochs = self.trainer.max_epochs
-        warmup_epochs = 3
-
-        optimizer = torch.optim.SGD(
-            self.parameters(),
-            lr=lr,
-            momentum=0.9,
-            weight_decay=0.000125 * dataloader.batch_size,
-            nesterov=True,
-        )
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        #     optimizer, mode="min", factor=0.2, patience=5, min_lr=1e-6, verbose=True
+        # dataloader = self.trainer.datamodule.train_dataloader()
+        # optimizer = torch.optim.SGD(
+        #     self.parameters(),
+        #     lr=self.lr,
+        #     momentum=0.9,
+        #     weight_decay=0.000125,
+        #     nesterov=True,
         # )
+        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        #     optimizer,
+        #     max_lr=self.lr,
+        #     epochs=self.trainer.max_epochs,
+        #     steps_per_epoch=len(dataloader),
+        #     anneal_strategy="linear",
+        #     pct_start=self.warmup_epochs / self.trainer.max_epochs,
+        #     cycle_momentum=False,
+        #     div_factor=10,
+        #     final_div_factor=1,
+        #     three_phase=True,
+        # )
+        # interval = "step"
 
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=lr,
-            epochs=train_epochs,
-            steps_per_epoch=len(dataloader),
-            anneal_strategy="linear",
-            pct_start=warmup_epochs / train_epochs,
-            cycle_momentum=False,
-            div_factor=10,
-            final_div_factor=1,
-            three_phase=True,
+        optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=0.000125,
         )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="max", factor=0.2, patience=10, min_lr=1e-6, verbose=True
+        )
+        interval = "epoch"
 
-        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+        return [optimizer], [
+            {"scheduler": scheduler, "interval": interval, "monitor": "val_realized"}
+        ]
 
 
 __all__ = ["ConformalTrainer"]
