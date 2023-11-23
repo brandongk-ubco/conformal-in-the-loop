@@ -11,7 +11,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
-BATCH_SIZE = 256 if torch.cuda.is_available() else 64
+BATCH_SIZE = 500 if torch.cuda.is_available() else 64
 
 
 class CIFAR10DataModule(L.LightningDataModule):

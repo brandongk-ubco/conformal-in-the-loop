@@ -33,6 +33,7 @@ class AugmentedCIFAR10(CIFAR10):
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
+
 class AugmentedCIFAR10DataModule(CIFAR10DataModule):
     augments = None
 

@@ -53,6 +53,7 @@ class ConformalTrainer(L.LightningModule):
             raise ValueError("Input must be 2, 3 or 4 dimensional")
 
     def on_train_epoch_start(self) -> None:
+        super().on_train_epoch_start()
         self.atypical_percentage.reset()
         self.uncertain_percentage.reset()
         self.confused_percentage.reset()
@@ -97,7 +98,10 @@ class ConformalTrainer(L.LightningModule):
         self.uncertain_percentage(uncertain_percentage)
 
         torch.testing.assert_close(
-            atypical_percentage + realized_percentage + confused_percentage + uncertain_percentage,
+            atypical_percentage
+            + realized_percentage
+            + confused_percentage
+            + uncertain_percentage,
             torch.tensor(1.0).to(self.device),
         )
 
@@ -133,26 +137,48 @@ class ConformalTrainer(L.LightningModule):
         self.log("val_loss", test_loss, on_step=False, on_epoch=True)
 
     def on_validation_epoch_start(self) -> None:
+        super().on_validation_epoch_start()
         self.accuracy.reset()
         self.cp_examples = []
 
     def on_validation_epoch_end(self) -> None:
+        super().on_validation_epoch_end()
         self.mapie_classifier = MapieClassifier(
             estimator=self, method="score", cv="prefit"
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        dataloader = self.trainer.datamodule.train_dataloader()
+
+        lr = 1e-3
+        train_epochs = self.trainer.max_epochs
+        warmup_epochs = 3
+
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=lr,
+            momentum=0.9,
+            weight_decay=0.000125 * dataloader.batch_size,
+            nesterov=True,
+        )
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     optimizer, mode="min", factor=0.2, patience=5, min_lr=1e-6, verbose=True
+        # )
+
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            mode='min',
-            factor=0.2,
-            patience=5,
-            min_lr=1e-6,
-            verbose=True
+            max_lr=lr,
+            epochs=train_epochs,
+            steps_per_epoch=len(dataloader),
+            anneal_strategy="linear",
+            pct_start=warmup_epochs / train_epochs,
+            cycle_momentum=False,
+            div_factor=10,
+            final_div_factor=1,
+            three_phase=True,
         )
 
-        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
 
-__all__ = ["get_model"]
+__all__ = ["ConformalTrainer"]
