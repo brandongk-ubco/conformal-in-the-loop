@@ -56,6 +56,6 @@ class AugmentedCIFAR10DataModule(CIFAR10DataModule):
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.cifar_test = AugmentedCIFAR10(
+            self.cifar_test = CIFAR10(
                 self.data_dir, train=False, transform=self.transform
             )

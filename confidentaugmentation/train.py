@@ -4,7 +4,7 @@ import sys
 import pytorch_lightning as L
 import torch
 from monai.networks.nets import EfficientNetBN
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from confidentaugmentation import cli
@@ -37,9 +37,15 @@ def train(
         mapie_alpha=mapie_alpha,
     )
 
+    if selectively_backpropagate:
+        ModelCheckpoint(monitor="val_realized", mode="max", save_top_k=1, save_last=True)
+    else:
+        ModelCheckpoint(monitor="val_loss", mode="min", save_top_k=1, save_last=True)
+
     callbacks = [
         EarlyStopping(monitor="val_realized", mode="max", patience=20),
         LearningRateMonitor(logging_interval="step"),
+        
     ]
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
@@ -60,3 +66,4 @@ def train(
     )
 
     trainer.fit(model=model, datamodule=dm)
+    trainer.test(ckpt_path="best", datamodule=dm)

@@ -14,6 +14,7 @@ class ConformalTrainer(L.LightningModule):
         num_classes,
         selectively_backpropagate=False,
         mapie_alpha=0.10,
+        val_mapie_alpha=0.10,
         warmup_epochs=3,
         lr=1e-3,
     ):
@@ -32,6 +33,7 @@ class ConformalTrainer(L.LightningModule):
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
+        self.val_mapie_alpha = val_mapie_alpha
         self.warmup_epochs = warmup_epochs
         self.lr = lr
 
@@ -158,7 +160,7 @@ class ConformalTrainer(L.LightningModule):
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
 
         conformal_sets = self.mapie_classifier.predict(
-            range(len(self.cp_examples)), alpha=[self.mapie_alpha]
+            range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
         )[1]
 
         num_classes = conformal_sets.sum(axis=1).squeeze()
@@ -187,6 +189,48 @@ class ConformalTrainer(L.LightningModule):
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
+
+    def test_step(self, batch, batch_idx):
+
+        x, y = batch
+        y_hat = self(x)
+        test_loss = F.cross_entropy(y_hat, y)
+
+        conformal_sets = self.mapie_classifier.predict(
+            range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
+        )[1]
+
+        num_classes = conformal_sets.sum(axis=1).squeeze()
+
+        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
+
+        correct = conformal_predictions == self.val_labels
+
+        atypical = num_classes == 0
+        realized = np.logical_and(correct, num_classes == 1)
+        confused = np.logical_and(~correct, num_classes == 1)
+        uncertain = num_classes > 1
+
+        atypical_percentage = atypical.sum() / len(atypical)
+        realized_percentage = realized.sum() / len(realized)
+        confused_percentage = confused.sum() / len(confused)
+        uncertain_percentage = uncertain.sum() / len(uncertain)
+
+        metrics = {
+            "test_atypical": atypical_percentage,
+            "test_uncertain": uncertain_percentage,
+            "test_confused": confused_percentage,
+            "test_realized": realized_percentage,
+        }
+
+        self.log_dict(
+            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
+        )
+
+        self.accuracy(y_hat, y)
+        self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         # dataloader = self.trainer.datamodule.train_dataloader()
@@ -217,12 +261,12 @@ class ConformalTrainer(L.LightningModule):
             weight_decay=0.000125,
         )
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="max", factor=0.2, patience=10, min_lr=1e-6, verbose=True
+            optimizer, mode="max" if self.selectively_backpropagate else "min", factor=0.2, patience=10, min_lr=1e-6, verbose=True
         )
         interval = "epoch"
 
         return [optimizer], [
-            {"scheduler": scheduler, "interval": interval, "monitor": "val_realized"}
+            {"scheduler": scheduler, "interval": interval, "monitor": "val_realized" if self.selectively_backpropagate else "val_loss"}
         ]
 
 
