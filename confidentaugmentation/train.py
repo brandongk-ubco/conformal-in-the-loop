@@ -24,7 +24,7 @@ def train(
     selectively_backpropagate: bool = False,
     mapie_alpha: float = 0.10,
     model_name: str = "efficientnet-b0",
-    pretrained: bool = False
+    pretrained: bool = False,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("medium")
@@ -36,7 +36,10 @@ def train(
         raise NotImplementedError("Dataset not implemented.")
 
     net = EfficientNetBN(
-        model_name, in_channels=dm.dims[0], num_classes=dm.num_classes, pretrained=pretrained
+        model_name,
+        in_channels=dm.dims[0],
+        num_classes=dm.num_classes,
+        pretrained=pretrained,
     )
 
     model = ConformalTrainer(
@@ -75,8 +78,13 @@ def train(
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
+    save_dir = os.path.join(
+        "lightning_logs",
+        "backprop_uncertain" if selectively_backpropagate else "backprop_all",
+        "pretrained" if pretrained else "scratch",
+    )
     logger = TensorBoardLogger(
-        save_dir="lightning_logs/pretrained" if pretrained else "lightning_logs/scratch",
+        save_dir=save_dir,
         version=f"{model_name}-{selectively_backpropagate}-{policy}-{mapie_alpha}",
         name=dataset,
     )

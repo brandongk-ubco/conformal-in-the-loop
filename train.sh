@@ -4,26 +4,16 @@ set -eux
 
 rm -rf lightning_logs
 
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate --mapie-alpha 0.05
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate --mapie-alpha 0.03
-
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/noop.yaml
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate --mapie-alpha 0.05
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/noop.yaml --selectively-backpropagate --mapie-alpha 0.03
-
-
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/cifar10.yaml
-python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml
-python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/noop.yaml --pretrained
-python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate
-python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate --pretrained
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate --mapie-alpha 0.05
-# python -m confidentaugmentation cifar10 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate --mapie-alpha 0.03
-
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/cifar10.yaml
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate --mapie-alpha 0.05
-# python -m confidentaugmentation cifar10 --model-name=efficientnet-b3 --augmentation-policy-path=./policies/cifar10.yaml --selectively-backpropagate --mapie-alpha 0.03
+for augmentation_policy in noop cifar10; do
+    for model_name in efficientnet-b0 efficientnet-b3; do
+        for selectively_backpropagate in "--no-selectively-backpropagate" "--selectively-backpropagate"; do
+            for mapie_alpha in 0.10 0.05 0.03; do
+                python -m confidentaugmentation cifar10 \
+                    "--model-name=${model_name}" \
+                    "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
+                    "${selectively_backpropagate}" \
+                    --mapie-alpha "${mapie_alpha}"
+            done
+        done
+    done
+done

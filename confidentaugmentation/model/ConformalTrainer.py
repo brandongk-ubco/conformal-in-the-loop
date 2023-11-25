@@ -262,7 +262,6 @@ class ConformalTrainer(L.LightningModule):
         # )
         # interval = "step"
 
-
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode="max" if self.selectively_backpropagate else "min",
