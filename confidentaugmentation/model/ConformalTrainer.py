@@ -155,6 +155,7 @@ class ConformalTrainer(L.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
+
         self.mapie_classifier = MapieClassifier(
             estimator=self, method="score", cv="prefit"
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
@@ -191,7 +192,6 @@ class ConformalTrainer(L.LightningModule):
         )
 
     def test_step(self, batch, batch_idx):
-
         x, y = batch
         y_hat = self(x)
         test_loss = F.cross_entropy(y_hat, y)
@@ -261,12 +261,23 @@ class ConformalTrainer(L.LightningModule):
             weight_decay=0.000125,
         )
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="max" if self.selectively_backpropagate else "min", factor=0.2, patience=10, min_lr=1e-6, verbose=True
+            optimizer,
+            mode="max" if self.selectively_backpropagate else "min",
+            factor=0.2,
+            patience=10,
+            min_lr=1e-6,
+            verbose=True,
         )
         interval = "epoch"
 
         return [optimizer], [
-            {"scheduler": scheduler, "interval": interval, "monitor": "val_realized" if self.selectively_backpropagate else "val_loss"}
+            {
+                "scheduler": scheduler,
+                "interval": interval,
+                "monitor": "val_realized"
+                if self.selectively_backpropagate
+                else "val_loss",
+            }
         ]
 
 
