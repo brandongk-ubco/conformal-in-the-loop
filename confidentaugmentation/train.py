@@ -19,19 +19,24 @@ from .model.ConformalTrainer import ConformalTrainer
 
 @cli.command()
 def train(
+    dataset: str,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
     mapie_alpha: float = 0.10,
     model_name: str = "efficientnet-b0",
+    pretrained: bool = False
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("medium")
 
     # dm = MNISTDataModule()
-    dm = AugmentedCIFAR10DataModule(augmentation_policy_path)
+    if dataset == "cifar10":
+        dm = AugmentedCIFAR10DataModule(augmentation_policy_path)
+    else:
+        raise NotImplementedError("Dataset not implemented.")
 
     net = EfficientNetBN(
-        model_name, in_channels=dm.dims[0], num_classes=dm.num_classes, pretrained=False
+        model_name, in_channels=dm.dims[0], num_classes=dm.num_classes, pretrained=pretrained
     )
 
     model = ConformalTrainer(
@@ -71,9 +76,9 @@ def train(
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
     logger = TensorBoardLogger(
-        save_dir=os.getcwd(),
+        save_dir="lightning_logs/pretrained" if pretrained else "lightning_logs/scratch",
         version=f"{model_name}-{selectively_backpropagate}-{policy}-{mapie_alpha}",
-        name="lightning_logs",
+        name=dataset,
     )
 
     trainer = L.Trainer(

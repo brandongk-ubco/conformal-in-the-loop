@@ -4,8 +4,11 @@ transform:
   __class_fullname__: Compose
   p: 1
   transforms:
-    - __class_fullname__: VerticalFlip
-      p: 0.50
+    - __class_fullname__: CropAndPad
+      p: 1.00
+      px:
+        - 0
+        - 4
     - __class_fullname__: HorizontalFlip
       p: 0.50
   bbox_params:
