@@ -51,16 +51,18 @@ class ConformalTrainer(L.LightningModule):
 
     def forward(self, x):
         if x.dim() == 2:
-            return self.model(x.unsqueeze(0).unsqueeze(0))
+            y_hat = self.model(x.unsqueeze(0).unsqueeze(0))
         elif x.dim() == 3:
-            return self.model(x.unsqueeze(0))
+            y_hat = self.model(x.unsqueeze(0))
         elif x.dim() == 4:
-            return self.model(x)
+            y_hat = self.model(x)
         else:
-            import pdb
-
-            pdb.set_trace()
             raise ValueError("Input must be 2, 3 or 4 dimensional")
+
+        if isinstance(y_hat, tuple):
+            y_hat, _ = y_hat
+
+        return y_hat
 
     def on_train_epoch_start(self) -> None:
         super().on_train_epoch_start()
@@ -134,6 +136,9 @@ class ConformalTrainer(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+        if isinstance(y_hat, tuple):
+            y_hat, _ = y_hat
+
         test_loss = F.cross_entropy(y_hat, y)
 
         self.cp_examples += list(

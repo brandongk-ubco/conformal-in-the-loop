@@ -11,6 +11,11 @@ transform:
         - 4
     - __class_fullname__: HorizontalFlip
       p: 0.50
+    - __class_fullname__: CoarseDropout
+      p: 0.50
+      max_holes: 1
+      max_height: 8
+      max_width: 8
   bbox_params:
   keypoint_params:
   additional_targets: {}

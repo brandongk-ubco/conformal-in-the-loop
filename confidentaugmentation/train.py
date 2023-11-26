@@ -3,7 +3,7 @@ import sys
 
 import pytorch_lightning as L
 import torch
-from monai.networks.nets import EfficientNetBN
+from monai.networks.nets import EfficientNetBN, ViT
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -35,11 +35,23 @@ def train(
     else:
         raise NotImplementedError("Dataset not implemented.")
 
-    net = EfficientNetBN(
-        model_name,
+    # net = EfficientNetBN(
+    #     model_name,
+    #     in_channels=dm.dims[0],
+    #     num_classes=dm.num_classes,
+    #     pretrained=pretrained,
+    # )
+
+    net = ViT(
         in_channels=dm.dims[0],
         num_classes=dm.num_classes,
-        pretrained=pretrained,
+        img_size=(32, 32),
+        patch_size=(16, 16),
+        proj_type="conv",
+        pos_embed_type="sincos",
+        post_activation=None,
+        classification=True,
+        spatial_dims=2,
     )
 
     model = ConformalTrainer(
