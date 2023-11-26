@@ -50,7 +50,6 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_train,
             num_workers=os.cpu_count(),
             shuffle=True,
-            pin_memory=True,
             batch_size=BATCH_SIZE,
             persistent_workers=True,
         )
@@ -60,7 +59,6 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_val,
             num_workers=os.cpu_count(),
             shuffle=False,
-            pin_memory=True,
             batch_size=BATCH_SIZE,
             persistent_workers=True,
         )
@@ -70,7 +68,6 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_test,
             num_workers=os.cpu_count(),
             shuffle=False,
-            pin_memory=True,
             batch_size=BATCH_SIZE,
             persistent_workers=True,
         )

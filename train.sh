@@ -5,13 +5,13 @@ set -eux
 rm -rf lightning_logs
 
 python -m confidentaugmentation train cifar10 \
-    "--model-name=ViT" \
+    "--model-name=efficientnet-b0" \
     "--augmentation-policy-path=./policies/cifar10.yaml" \
     "--selectively-backpropagate" \
     "--mapie-alpha=0.10"
 
 python -m confidentaugmentation train cifar10 \
-    "--model-name=ViT" \
+    "--model-name=efficientnet-b0" \
     "--augmentation-policy-path=./policies/cifar10.yaml" \
     "--mapie-alpha=0.10"
 
