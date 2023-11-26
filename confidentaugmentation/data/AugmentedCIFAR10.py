@@ -7,7 +7,7 @@ from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 
 from .CIFAR10 import CIFAR10DataModule
-
+from PIL import Image
 
 class AugmentedCIFAR10(CIFAR10):
     augment_indices = {}
@@ -21,12 +21,22 @@ class AugmentedCIFAR10(CIFAR10):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = super().__getitem__(index)
+        img, target = self.data[index], self.targets[index]
+
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img.numpy(), target=target)
-            img = torch.tensor(augmented["image"], dtype=img.dtype)
-            target = augmented["target"]
+            augmented = self.augments(image=img)
+            img = augmented["image"]
+
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        assert img.shape == (3, 32, 32)
 
         return img, target
 
