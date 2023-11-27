@@ -28,7 +28,11 @@ def train(
     pretrained: bool = False,
 ):
     L.seed_everything(42, workers=True)
-    torch.set_float32_matmul_precision("medium")
+    torch.set_float32_matmul_precision("high")
+
+    if not selectively_backpropagate and mapie_alpha != 0.10:
+        logger.info("Can't use MAPIE with backprop_all.")
+        sys.exit(0)
 
     # dm = MNISTDataModule()
     if dataset == "cifar10":
@@ -37,6 +41,9 @@ def train(
         raise NotImplementedError("Dataset not implemented.")
 
     if "efficientnet" in model_name:
+        if model_name == "efficientnet-b8" and pretrained == True:
+            logger.info("Can't use pretrained EfficientNet-B8.")
+            sys.exit(0)
         net = EfficientNetBN(
             model_name,
             in_channels=dm.dims[0],
