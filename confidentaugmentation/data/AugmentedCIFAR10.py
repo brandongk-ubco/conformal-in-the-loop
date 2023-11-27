@@ -3,11 +3,12 @@ from typing import Any, Tuple
 
 import albumentations as A
 import torch
+from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 
 from .CIFAR10 import CIFAR10DataModule
-from PIL import Image
+
 
 class AugmentedCIFAR10(CIFAR10):
     augment_indices = {}
@@ -22,7 +23,6 @@ class AugmentedCIFAR10(CIFAR10):
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, target = self.data[index], self.targets[index]
-
 
         if self.augment_indices[index]:
             augmented = self.augments(image=img)

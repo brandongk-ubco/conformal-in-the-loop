@@ -1,12 +1,14 @@
+import os
+
 import cv2
 import pytorch_lightning as L
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
 
 from confidentaugmentation import cli
 from confidentaugmentation.data import AugmentedCIFAR10DataModule
-import os
-from torchvision.utils import make_grid
+
 
 @cli.command()
 def visualize(
@@ -23,12 +25,7 @@ def visualize(
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
-    save_dir = os.path.join(
-        "visualizations",
-        dataset,
-        split,
-        policy
-    )
+    save_dir = os.path.join("visualizations", dataset, split, policy)
 
     writer = SummaryWriter(save_dir)
 

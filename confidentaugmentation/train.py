@@ -3,6 +3,7 @@ import sys
 
 import pytorch_lightning as L
 import torch
+from loguru import logger
 from monai.networks.nets import EfficientNetBN, ViT
 from pytorch_lightning.callbacks import (
     EarlyStopping,
@@ -35,24 +36,28 @@ def train(
     else:
         raise NotImplementedError("Dataset not implemented.")
 
-    net = EfficientNetBN(
-        model_name,
-        in_channels=dm.dims[0],
-        num_classes=dm.num_classes,
-        pretrained=pretrained,
-    )
-
-    # net = ViT(
-    #     in_channels=dm.dims[0],
-    #     num_classes=dm.num_classes,
-    #     img_size=(32, 32),
-    #     patch_size=(16, 16),
-    #     proj_type="conv",
-    #     pos_embed_type="sincos",
-    #     post_activation=None,
-    #     classification=True,
-    #     spatial_dims=2,
-    # )
+    if "efficientnet" in model_name:
+        net = EfficientNetBN(
+            model_name,
+            in_channels=dm.dims[0],
+            num_classes=dm.num_classes,
+            pretrained=pretrained,
+        )
+    elif "vit" == model_name:
+        if pretrained == True:
+            logger.info("Can't use pretrained ViT.")
+            sys.exit(0)
+        net = ViT(
+            in_channels=dm.dims[0],
+            num_classes=dm.num_classes,
+            img_size=(32, 32),
+            patch_size=(16, 16),
+            proj_type="conv",
+            pos_embed_type="sincos",
+            post_activation=None,
+            classification=True,
+            spatial_dims=2,
+        )
 
     model = ConformalTrainer(
         net,
@@ -95,14 +100,14 @@ def train(
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "pretrained" if pretrained else "scratch",
     )
-    logger = TensorBoardLogger(
+    trainer_logger = TensorBoardLogger(
         save_dir=save_dir,
         version=f"{model_name}-{selectively_backpropagate}-{policy}-{mapie_alpha}",
         name=dataset,
     )
 
     trainer = L.Trainer(
-        logger=logger,
+        logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
         max_epochs=sys.maxsize,
         deterministic=True,
