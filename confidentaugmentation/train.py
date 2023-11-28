@@ -4,13 +4,13 @@ import sys
 import pytorch_lightning as L
 import torch
 from loguru import logger
-from monai.networks.nets import EfficientNetBN, ViT
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
+from timm import create_model
 
 from confidentaugmentation import cli
 from confidentaugmentation.data import AugmentedCIFAR10DataModule
@@ -40,34 +40,8 @@ def train(
     else:
         raise NotImplementedError("Dataset not implemented.")
 
-    if "efficientnet" in model_name:
-        if model_name == "efficientnet-b8" and pretrained == True:
-            logger.info("Can't use pretrained EfficientNet-B8.")
-            sys.exit(0)
-        net = EfficientNetBN(
-            model_name,
-            in_channels=dm.dims[0],
-            num_classes=dm.num_classes,
-            pretrained=pretrained,
-        )
-    elif "vit" == model_name:
-        if pretrained == True:
-            logger.info("Can't use pretrained ViT.")
-            sys.exit(0)
-        net = ViT(
-            in_channels=dm.dims[0],
-            num_classes=dm.num_classes,
-            img_size=(32, 32),
-            patch_size=(16, 16),
-            proj_type="conv",
-            pos_embed_type="sincos",
-            post_activation=None,
-            classification=True,
-            spatial_dims=2,
-        )
-
     model = ConformalTrainer(
-        net,
+        create_model(model_name, pretrained=pretrained, num_classes=len(dm.classes)),
         num_classes=dm.num_classes,
         selectively_backpropagate=selectively_backpropagate,
         mapie_alpha=mapie_alpha,
@@ -109,7 +83,7 @@ def train(
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,
-        version=f"{model_name}-{selectively_backpropagate}-{policy}-{mapie_alpha}",
+        version=f"{model_name}-{policy}-{mapie_alpha}",
         name=dataset,
     )
 

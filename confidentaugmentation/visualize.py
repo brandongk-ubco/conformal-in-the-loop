@@ -46,7 +46,7 @@ def visualize(
     else:
         raise ValueError(f"Invalid split: {split}")
 
-    classes = datamodule.train_dataloader().dataset.dataset.classes
+    classes = datamodule.classes
 
     dataiter = iter(dataloader)
     max_width = 1920

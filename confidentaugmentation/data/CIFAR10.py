@@ -15,6 +15,8 @@ BATCH_SIZE = 500 if torch.cuda.is_available() else 64
 
 
 class CIFAR10DataModule(L.LightningDataModule):
+    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+
     def __init__(self, data_dir: str = PATH_DATASETS):
         super().__init__()
         self.data_dir = data_dir
