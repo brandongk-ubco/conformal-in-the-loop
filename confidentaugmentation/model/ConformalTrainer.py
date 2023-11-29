@@ -238,31 +238,31 @@ class ConformalTrainer(L.LightningModule):
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
+        # dataloader = self.trainer.datamodule.train_dataloader()
         # optimizer = torch.optim.SGD(
         #     self.parameters(),
         #     lr=self.lr,
         #     momentum=0.9,
-        #     weight_decay=0.000125,
+        #     weight_decay=0.000125 * dataloader.batch_size,
         #     nesterov=True,
         # )
 
         optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.lr,
-            weight_decay=0.000125,
+            weight_decay=1e-3,
         )
 
-        # dataloader = self.trainer.datamodule.train_dataloader()
         # scheduler = torch.optim.lr_scheduler.OneCycleLR(
         #     optimizer,
         #     max_lr=self.lr,
         #     epochs=self.trainer.max_epochs,
         #     steps_per_epoch=len(dataloader),
-        #     anneal_strategy="linear",
+        #     anneal_strategy="cos",
         #     pct_start=self.warmup_epochs / self.trainer.max_epochs,
         #     cycle_momentum=False,
         #     div_factor=10,
-        #     final_div_factor=1,
+        #     final_div_factor=100,
         #     three_phase=True,
         # )
         # interval = "step"

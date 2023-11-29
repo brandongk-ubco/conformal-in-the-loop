@@ -26,6 +26,7 @@ def train(
     mapie_alpha: float = 0.10,
     model_name: str = "efficientnet-b0",
     pretrained: bool = False,
+    max_epochs: int = sys.maxsize,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -90,10 +91,11 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=sys.maxsize,
+        max_epochs=max_epochs,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
+        accumulate_grad_batches=3
     )
 
     trainer.fit(model=model, datamodule=dm)

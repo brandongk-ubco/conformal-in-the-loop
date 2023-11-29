@@ -4,10 +4,10 @@ set -eux
 
 rm -rf lightning_logs
 
-for augmentation_policy in cifar10 noop; do
-    for model_name in efficientnet_b0 efficientnet_b3; do
-        for mapie_alpha in 0.10 0.05 0.03; do
-            for selectively_backpropagate in "--no-selectively-backpropagate" "--selectively-backpropagate"; do
+for augmentation_policy in cifar10; do
+    for model_name in efficientnet_b0 efficientnet_b1 efficientnet_b3 efficientnet_b5; do
+        for mapie_alpha in 0.10; do
+            for selectively_backpropagate in "--selectively-backpropagate" "--no-selectively-backpropagate"; do
                 for pretrained in "--pretrained" "--no-pretrained"; do
                     python -m confidentaugmentation train cifar10 \
                         "--model-name=${model_name}" \
