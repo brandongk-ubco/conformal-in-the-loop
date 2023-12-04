@@ -7,3 +7,4 @@ typer
 isort
 black
 loguru
+academictorrents

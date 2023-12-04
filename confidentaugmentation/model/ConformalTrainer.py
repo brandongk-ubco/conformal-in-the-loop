@@ -17,6 +17,8 @@ class ConformalTrainer(L.LightningModule):
         val_mapie_alpha=0.10,
         warmup_epochs=3,
         lr=1e-3,
+        pid=None,
+        lr_method="plateau",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -36,6 +38,9 @@ class ConformalTrainer(L.LightningModule):
         self.val_mapie_alpha = val_mapie_alpha
         self.warmup_epochs = warmup_epochs
         self.lr = lr
+        self.pid = pid
+        self.weight_decay = 0.0
+        self.lr_method = lr_method
 
     def __sklearn_is_fitted__(self):
         return True
@@ -73,7 +78,24 @@ class ConformalTrainer(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+
+        if self.pid is not None:
+            # minimum = x.min()
+            # x = x - minimum
+            # x = torch.nn.functional.dropout(x, p=self.pixel_dropout)
+            # x = x + minimum
+            self.optimizers().optimizer.param_groups[0][
+                "weight_decay"
+            ] = self.weight_decay
+
         y_hat = self(x)
+
+        img, target = x[1, :, :, :], y[1]
+        img = img - img.min()
+        img = img / img.max()
+        label = self.trainer.datamodule.classes[target]
+
+        self.logger.experiment.add_image(f"{label}", img, self.global_step)
 
         self.cp_examples = list(
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
@@ -123,8 +145,26 @@ class ConformalTrainer(L.LightningModule):
             "confused": self.confused_percentage.compute(),
             "realized": self.realized_percentage.compute(),
         }
-
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+
+        if self.pid is not None:
+            self.weight_decay = self.pid(metrics["uncertain"])
+            self.log(
+                "weight_decay",
+                self.weight_decay,
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True,
+                logger=True,
+            )
+            self.log(
+                "pid_setpoint",
+                self.pid.get_setpoint(),
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True,
+                logger=True,
+            )
 
         if self.selectively_backpropagate:
             loss = F.cross_entropy(y_hat, y, reduction="none")[uncertain].mean()
@@ -191,10 +231,17 @@ class ConformalTrainer(L.LightningModule):
             "val_confused": confused_percentage,
             "val_realized": realized_percentage,
         }
-
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
+
+        if self.pid:
+            self.pid.set_setpoint(metrics["val_uncertain"] * 0.9)
+
+        if self.lr_method == "uncertainty":
+            self.optimizers().optimizer.param_groups[0]["lr"] = (
+                self.lr * metrics["val_uncertain"]
+            )
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -238,7 +285,7 @@ class ConformalTrainer(L.LightningModule):
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        # dataloader = self.trainer.datamodule.train_dataloader()
+        dataloader = self.trainer.datamodule.train_dataloader()
         # optimizer = torch.optim.SGD(
         #     self.parameters(),
         #     lr=self.lr,
@@ -247,45 +294,46 @@ class ConformalTrainer(L.LightningModule):
         #     nesterov=True,
         # )
 
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.lr,
-            weight_decay=1e-3,
-        )
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
 
-        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        #     optimizer,
-        #     max_lr=self.lr,
-        #     epochs=self.trainer.max_epochs,
-        #     steps_per_epoch=len(dataloader),
-        #     anneal_strategy="cos",
-        #     pct_start=self.warmup_epochs / self.trainer.max_epochs,
-        #     cycle_momentum=False,
-        #     div_factor=10,
-        #     final_div_factor=100,
-        #     three_phase=True,
-        # )
-        # interval = "step"
+        if self.lr_method == "one_cycle":
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                max_lr=self.lr,
+                epochs=self.trainer.max_epochs,
+                steps_per_epoch=len(dataloader),
+                anneal_strategy="cos",
+                pct_start=self.warmup_epochs / self.trainer.max_epochs,
+                cycle_momentum=False,
+                div_factor=10,
+                final_div_factor=100,
+                three_phase=True,
+            )
+            interval = "step"
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode="max" if self.selectively_backpropagate else "min",
-            factor=0.2,
-            patience=10,
-            min_lr=1e-6,
-            verbose=True,
-        )
-        interval = "epoch"
+        if self.lr_method == "plateau":
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode="max" if self.selectively_backpropagate else "min",
+                factor=0.2,
+                patience=10,
+                min_lr=1e-6,
+                verbose=True,
+            )
+            interval = "epoch"
 
-        return [optimizer], [
-            {
-                "scheduler": scheduler,
-                "interval": interval,
-                "monitor": "val_realized"
-                if self.selectively_backpropagate
-                else "val_loss",
-            }
-        ]
+        if scheduler:
+            return [optimizer], [
+                {
+                    "scheduler": scheduler,
+                    "interval": interval,
+                    "monitor": "val_realized"
+                    if self.selectively_backpropagate
+                    else "val_loss",
+                }
+            ]
+
+        return optimizer
 
 
 __all__ = ["ConformalTrainer"]

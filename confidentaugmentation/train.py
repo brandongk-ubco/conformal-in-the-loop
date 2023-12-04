@@ -13,6 +13,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from timm import create_model
 
 from confidentaugmentation import cli
+from confidentaugmentation.control import PID
 from confidentaugmentation.data import AugmentedCIFAR10DataModule
 
 from .model.ConformalTrainer import ConformalTrainer
@@ -27,6 +28,9 @@ def train(
     model_name: str = "efficientnet-b0",
     pretrained: bool = False,
     max_epochs: int = sys.maxsize,
+    use_pid: bool = False,
+    Kp: float = 1e-4,
+    lr_method: str = "plateau",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -34,6 +38,11 @@ def train(
     if not selectively_backpropagate and mapie_alpha != 0.10:
         logger.info("Can't use MAPIE with backprop_all.")
         sys.exit(0)
+
+    if use_pid:
+        pid = PID(Kp, 1.0, output_limits=(0, 0.01))
+    else:
+        pid = None
 
     # dm = MNISTDataModule()
     if dataset == "cifar10":
@@ -46,6 +55,8 @@ def train(
         num_classes=dm.num_classes,
         selectively_backpropagate=selectively_backpropagate,
         mapie_alpha=mapie_alpha,
+        pid=pid,
+        lr_method=lr_method,
     )
 
     if selectively_backpropagate:
@@ -81,6 +92,7 @@ def train(
         "lightning_logs",
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "pretrained" if pretrained else "scratch",
+        "pid" if use_pid else "no_pid",
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,
@@ -95,7 +107,7 @@ def train(
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
-        accumulate_grad_batches=3
+        accumulate_grad_batches=3,
     )
 
     trainer.fit(model=model, datamodule=dm)

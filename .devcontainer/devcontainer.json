@@ -21,7 +21,7 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
-	"postCreateCommand": "sudo chown -R vscode:vscode /workspaces",
+	"postCreateCommand": "(cd /workspaces/confident-augmentation && sudo chown -R vscode:vscode $(ls -I datasets))",
 
 	"customizations": {
 		"vscode": {

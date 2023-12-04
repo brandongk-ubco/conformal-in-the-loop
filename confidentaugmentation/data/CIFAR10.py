@@ -15,7 +15,18 @@ BATCH_SIZE = 500 if torch.cuda.is_available() else 64
 
 
 class CIFAR10DataModule(L.LightningDataModule):
-    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    classes = [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck",
+    ]
 
     def __init__(self, data_dir: str = PATH_DATASETS):
         super().__init__()
@@ -32,8 +43,8 @@ class CIFAR10DataModule(L.LightningDataModule):
 
     def prepare_data(self):
         # download
-        CIFAR10(self.data_dir, train=True, download=True)
-        CIFAR10(self.data_dir, train=False, download=True)
+        CIFAR10(self.data_dir, train=True)
+        CIFAR10(self.data_dir, train=False)
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
