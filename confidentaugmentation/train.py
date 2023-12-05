@@ -97,6 +97,8 @@ def train(
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "pretrained" if pretrained else "scratch",
         "pid" if use_pid else "no_pid",
+        lr_method,
+        optimizer
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,
