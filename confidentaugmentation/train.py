@@ -29,8 +29,10 @@ def train(
     pretrained: bool = False,
     max_epochs: int = sys.maxsize,
     use_pid: bool = False,
-    Kp: float = 1e-4,
+    Kp: float = 5e-3,
     lr_method: str = "plateau",
+    lr: float = 1e-3,
+    optimizer: str = "Adam"
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -40,7 +42,7 @@ def train(
         sys.exit(0)
 
     if use_pid:
-        pid = PID(Kp, 1.0, output_limits=(0, 0.01))
+        pid = PID(Kp, 1.0, output_limits=(0, 0.1))
     else:
         pid = None
 
@@ -57,6 +59,8 @@ def train(
         mapie_alpha=mapie_alpha,
         pid=pid,
         lr_method=lr_method,
+        lr=lr,
+        optimizer=optimizer
     )
 
     if selectively_backpropagate:

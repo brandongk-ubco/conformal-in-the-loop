@@ -2,17 +2,18 @@ import os
 from typing import Any, Tuple
 
 import albumentations as A
-import torch
 from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 
 from .CIFAR10 import CIFAR10DataModule
+from torchvision.transforms import v2
 
 
 class AugmentedCIFAR10(CIFAR10):
     augment_indices = {}
     augments = None
+    augmentation_probability = 0.0
 
     def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
         for index in train_indices:
