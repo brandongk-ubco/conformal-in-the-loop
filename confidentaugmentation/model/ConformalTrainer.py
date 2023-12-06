@@ -7,6 +7,7 @@ from torchmetrics.aggregation import MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 from torchvision.transforms import v2
 
+
 class ConformalTrainer(L.LightningModule):
     def __init__(
         self,
@@ -19,7 +20,9 @@ class ConformalTrainer(L.LightningModule):
         lr=1e-3,
         pid=None,
         lr_method="plateau",
-        optimizer="Adam"
+        optimizer="Adam",
+        control_weight_decay=False,
+        control_pixel_dropout=False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -43,6 +46,9 @@ class ConformalTrainer(L.LightningModule):
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
         self.optimizer = optimizer
+        self.control_weight_decay = control_weight_decay
+        self.control_pixel_dropout = control_pixel_dropout
+        self.weight_decay = 0.0
 
     def __sklearn_is_fitted__(self):
         return True
@@ -81,15 +87,16 @@ class ConformalTrainer(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
 
-        if self.pid is not None:
-            # minimum = x.min()
-            # x = x - minimum
-            # applier = v2.RandomApply(transforms=[v2.RandAugment()], p=self.augmentation_probability)
-            # torch.nn.functional.dropout(x, p=self.pixel_dropout, inplace=True)
-            # x = x + minimum
-            self.optimizers().optimizer.param_groups[0][
-                "weight_decay"
-            ] = self.pixel_dropout / 100
+        if self.control_pixel_dropout:
+            minimum = x.min()
+            x = x - minimum
+            torch.nn.functional.dropout(x, p=self.pixel_dropout, inplace=True)
+            x = x + minimum
+
+        if self.control_weight_decay:
+            self.optimizers().optimizer.param_groups[0]["weight_decay"] = (
+                self.pixel_dropout / 100
+            )
 
         y_hat = self(x)
 
@@ -150,8 +157,8 @@ class ConformalTrainer(L.LightningModule):
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
-        if self.pid is not None:
-            self.pixel_dropout = float(self.pid(metrics["uncertain"]))
+        if self.control_pixel_dropout:
+            self.pixel_dropout = float(self.pid(metrics["uncertain"])) / 10
             self.log(
                 "pixel_dropout",
                 self.pixel_dropout,
@@ -160,6 +167,9 @@ class ConformalTrainer(L.LightningModule):
                 prog_bar=True,
                 logger=True,
             )
+
+        if self.control_weight_decay:
+            self.weight_decay = float(self.pid(metrics["uncertain"])) / 100
             self.log(
                 "weight_decay",
                 self.pixel_dropout / 100,
@@ -168,6 +178,8 @@ class ConformalTrainer(L.LightningModule):
                 prog_bar=True,
                 logger=True,
             )
+
+        if self.pid is not None:
             self.log(
                 "pid_setpoint",
                 self.pid.get_setpoint(),
@@ -307,7 +319,9 @@ class ConformalTrainer(L.LightningModule):
                 nesterov=True,
             )
         elif self.optimizer == "Adam":
-            optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1)
+            optimizer = torch.optim.Adam(
+                self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
+            )
         else:
             raise NotImplementedError("Optimizer not implemented.")
 

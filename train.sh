@@ -11,16 +11,22 @@ for augmentation_policy in "cifar10"; do
                 for pretrained in "--pretrained"; do
                     for use_pid in "--use-pid" "--no-use-pid"; do
                         for lr_method in "plateau" "uncertainty"; do
-                            for optimizer in "SGD" "Adam"; do
-                                python -m confidentaugmentation train cifar10 \
-                                    "--model-name=${model_name}" \
-                                    "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
-                                    "${pretrained}" \
-                                    "${selectively_backpropagate}" \
-                                    "${use_pid}" \
-                                    "--mapie-alpha=${mapie_alpha}" \
-                                    "--lr-method=${lr_method}" \
-                                    "--optimizer=${optimizer}"
+                            for optimizer in "Adam"; do
+                                for control_weight_decay in "--control-weight-decay" "--no-control-weight-decay"; do
+                                    for control_pixel_dropout in "--control-pixel-dropout" "--no-control-pixel-dropout"; do
+                                        python -m confidentaugmentation train cifar10 \
+                                            "--model-name=${model_name}" \
+                                            "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
+                                            "${pretrained}" \
+                                            "${selectively_backpropagate}" \
+                                            "${use_pid}" \
+                                            "--mapie-alpha=${mapie_alpha}" \
+                                            "--lr-method=${lr_method}" \
+                                            "--optimizer=${optimizer}" \
+                                            "${control_weight_decay}" \
+                                            "${control_pixel_dropout}"
+                                    done
+                                done
                             done
                         done
                     done

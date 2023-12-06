@@ -32,7 +32,9 @@ def train(
     Kp: float = 5e-3,
     lr_method: str = "plateau",
     lr: float = 1e-3,
-    optimizer: str = "Adam"
+    optimizer: str = "Adam",
+    control_weight_decay: bool = False,
+    control_pixel_dropout: bool = False,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -42,8 +44,10 @@ def train(
         sys.exit(0)
 
     if use_pid:
-        pid = PID(Kp, 1.0, output_limits=(0, 0.1))
+        pid = PID(Kp, 1.0, output_limits=(0, 1))
     else:
+        if control_weight_decay or control_pixel_dropout:
+            raise ValueError("Can't use control without PID.")
         pid = None
 
     # dm = MNISTDataModule()
@@ -60,7 +64,9 @@ def train(
         pid=pid,
         lr_method=lr_method,
         lr=lr,
-        optimizer=optimizer
+        optimizer=optimizer,
+        control_weight_decay=control_weight_decay,
+        control_pixel_dropout=control_pixel_dropout,
     )
 
     if selectively_backpropagate:
@@ -81,14 +87,18 @@ def train(
         )
 
     callbacks = [
-        EarlyStopping(
-            monitor="val_realized" if selectively_backpropagate else "val_loss",
-            mode="max" if selectively_backpropagate else "min",
-            patience=20,
-        ),
         LearningRateMonitor(logging_interval="step"),
         model_checkpoint,
     ]
+
+    if lr_method in ["plateau", "uncertainty"]:
+        callbacks.append(
+            EarlyStopping(
+                monitor="val_realized" if selectively_backpropagate else "val_loss",
+                mode="max" if selectively_backpropagate else "min",
+                patience=20,
+            )
+        )
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
@@ -97,8 +107,12 @@ def train(
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "pretrained" if pretrained else "scratch",
         "pid" if use_pid else "no_pid",
+        "control_weight_decay" if control_weight_decay else "no_control_weight_decay",
+        "control_pixel_dropout"
+        if control_pixel_dropout
+        else "no_control_pixel_dropout",
         lr_method,
-        optimizer
+        optimizer,
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,

@@ -5,9 +5,9 @@ import albumentations as A
 from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
+from torchvision.transforms import v2
 
 from .CIFAR10 import CIFAR10DataModule
-from torchvision.transforms import v2
 
 
 class AugmentedCIFAR10(CIFAR10):
