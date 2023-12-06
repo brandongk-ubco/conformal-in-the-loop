@@ -94,9 +94,9 @@ class ConformalTrainer(L.LightningModule):
             x = x + minimum
 
         if self.control_weight_decay:
-            self.optimizers().optimizer.param_groups[0]["weight_decay"] = (
-                self.weight_decay
-            )
+            self.optimizers().optimizer.param_groups[0][
+                "weight_decay"
+            ] = self.weight_decay
 
         y_hat = self(x)
 
@@ -157,6 +157,15 @@ class ConformalTrainer(L.LightningModule):
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
+        self.log(
+            "weight_decay",
+            self.optimizers().optimizer.param_groups[0]["weight_decay"],
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+            logger=True,
+        )
+
         if self.pid is not None:
             pid_value = float(self.pid(metrics["uncertain"]))
             self.log(
@@ -181,16 +190,6 @@ class ConformalTrainer(L.LightningModule):
 
             if self.control_weight_decay:
                 self.weight_decay = pid_value / 1000
-                self.log(
-                    "weight_decay",
-                    self.weight_decay,
-                    on_step=True,
-                    on_epoch=False,
-                    prog_bar=True,
-                    logger=True,
-                )
-
-
 
         if self.selectively_backpropagate:
             loss = F.cross_entropy(y_hat, y, reduction="none")[uncertain].mean()
