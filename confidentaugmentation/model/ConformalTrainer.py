@@ -157,9 +157,8 @@ class ConformalTrainer(L.LightningModule):
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
-        pid_value = float(self.pid(metrics["uncertain"]))
-
         if self.pid is not None:
+            pid_value = float(self.pid(metrics["uncertain"]))
             self.log(
                 "pid_setpoint",
                 self.pid.get_setpoint(),
@@ -169,27 +168,27 @@ class ConformalTrainer(L.LightningModule):
                 logger=True,
             )
 
-        if self.control_pixel_dropout:
-            self.pixel_dropout = pid_value / 10
-            self.log(
-                "pixel_dropout",
-                self.pixel_dropout,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-                logger=True,
-            )
+            if self.control_pixel_dropout:
+                self.pixel_dropout = pid_value / 10
+                self.log(
+                    "pixel_dropout",
+                    self.pixel_dropout,
+                    on_step=True,
+                    on_epoch=False,
+                    prog_bar=True,
+                    logger=True,
+                )
 
-        if self.control_weight_decay:
-            self.weight_decay = pid_value / 1000
-            self.log(
-                "weight_decay",
-                self.weight_decay,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-                logger=True,
-            )
+            if self.control_weight_decay:
+                self.weight_decay = pid_value / 1000
+                self.log(
+                    "weight_decay",
+                    self.weight_decay,
+                    on_step=True,
+                    on_epoch=False,
+                    prog_bar=True,
+                    logger=True,
+                )
 
 
 

@@ -24,7 +24,7 @@ for augmentation_policy in "cifar10"; do
                                             "--lr-method=${lr_method}" \
                                             "--optimizer=${optimizer}" \
                                             "${control_weight_decay}" \
-                                            "${control_pixel_dropout}"
+                                            "${control_pixel_dropout}" 2>&1 | tee run.log
                                     done
                                 done
                             done
