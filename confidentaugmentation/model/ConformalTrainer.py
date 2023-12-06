@@ -95,7 +95,7 @@ class ConformalTrainer(L.LightningModule):
 
         if self.control_weight_decay:
             self.optimizers().optimizer.param_groups[0]["weight_decay"] = (
-                self.pixel_dropout / 100
+                self.weight_decay
             )
 
         y_hat = self(x)
@@ -169,10 +169,10 @@ class ConformalTrainer(L.LightningModule):
             )
 
         if self.control_weight_decay:
-            self.weight_decay = float(self.pid(metrics["uncertain"])) / 100
+            self.weight_decay = float(self.pid(metrics["uncertain"])) / 1000
             self.log(
                 "weight_decay",
-                self.pixel_dropout / 100,
+                self.weight_decay,
                 on_step=True,
                 on_epoch=False,
                 prog_bar=True,

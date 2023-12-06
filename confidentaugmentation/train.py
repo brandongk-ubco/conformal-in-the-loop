@@ -44,6 +44,8 @@ def train(
         sys.exit(0)
 
     if use_pid:
+        if not (control_weight_decay or control_pixel_dropout):
+            raise ValueError("Can't use PID without control.")
         pid = PID(Kp, 1.0, output_limits=(0, 1))
     else:
         if control_weight_decay or control_pixel_dropout:
