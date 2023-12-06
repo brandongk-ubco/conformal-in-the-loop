@@ -27,7 +27,6 @@ def train(
     mapie_alpha: float = 0.10,
     model_name: str = "efficientnet-b0",
     pretrained: bool = False,
-    max_epochs: int = sys.maxsize,
     use_pid: bool = False,
     Kp: float = 5e-3,
     lr_method: str = "plateau",
@@ -45,11 +44,13 @@ def train(
 
     if use_pid:
         if not (control_weight_decay or control_pixel_dropout):
-            raise ValueError("Can't use PID without control.")
+            logger.info("Can't use PID without control.")
+            sys.exit(0)
         pid = PID(Kp, 1.0, output_limits=(0, 1))
     else:
         if control_weight_decay or control_pixel_dropout:
-            raise ValueError("Can't use control without PID.")
+            logger.info("Can't use control without PID.")
+            sys.exit(0)
         pid = None
 
     # dm = MNISTDataModule()
@@ -94,6 +95,9 @@ def train(
     ]
 
     if lr_method in ["plateau", "uncertainty"]:
+        if not pretrained:
+            logger.info("Only Use plateau or uncertainty with pretrained training.")
+            sys.exit(0)
         callbacks.append(
             EarlyStopping(
                 monitor="val_realized" if selectively_backpropagate else "val_loss",
@@ -101,6 +105,10 @@ def train(
                 patience=20,
             )
         )
+
+    if lr_method == "one_cycle" and pretrained:
+        logger.info("Only Use one_cycle with scratch training.")
+        sys.exit(0)
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
@@ -125,7 +133,7 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=max_epochs,
+        max_epochs=100 if lr_method == "one_cycle" else sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,

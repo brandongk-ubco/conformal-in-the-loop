@@ -157,27 +157,7 @@ class ConformalTrainer(L.LightningModule):
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
-        if self.control_pixel_dropout:
-            self.pixel_dropout = float(self.pid(metrics["uncertain"])) / 10
-            self.log(
-                "pixel_dropout",
-                self.pixel_dropout,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-                logger=True,
-            )
-
-        if self.control_weight_decay:
-            self.weight_decay = float(self.pid(metrics["uncertain"])) / 1000
-            self.log(
-                "weight_decay",
-                self.weight_decay,
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-                logger=True,
-            )
+        pid_value = float(self.pid(metrics["uncertain"]))
 
         if self.pid is not None:
             self.log(
@@ -188,6 +168,30 @@ class ConformalTrainer(L.LightningModule):
                 prog_bar=True,
                 logger=True,
             )
+
+        if self.control_pixel_dropout:
+            self.pixel_dropout = pid_value / 10
+            self.log(
+                "pixel_dropout",
+                self.pixel_dropout,
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True,
+                logger=True,
+            )
+
+        if self.control_weight_decay:
+            self.weight_decay = pid_value / 1000
+            self.log(
+                "weight_decay",
+                self.weight_decay,
+                on_step=True,
+                on_epoch=False,
+                prog_bar=True,
+                logger=True,
+            )
+
+
 
         if self.selectively_backpropagate:
             loss = F.cross_entropy(y_hat, y, reduction="none")[uncertain].mean()
@@ -330,7 +334,7 @@ class ConformalTrainer(L.LightningModule):
         if self.lr_method == "one_cycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
-                max_lr=self.lr,
+                max_lr=self.lr * 10,
                 epochs=self.trainer.max_epochs,
                 steps_per_epoch=len(dataloader),
                 anneal_strategy="cos",
