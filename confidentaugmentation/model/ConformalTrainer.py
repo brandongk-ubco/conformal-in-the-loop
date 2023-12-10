@@ -100,12 +100,11 @@ class ConformalTrainer(L.LightningModule):
 
         y_hat = self(x)
 
-        img, target = x[1, :, :, :], y[1]
-        img = img - img.min()
-        img = img / img.max()
-        label = self.trainer.datamodule.classes[target]
-
-        self.logger.experiment.add_image(f"{label}", img, self.global_step)
+        # img, target = x[1, :, :, :], y[1]
+        # img = img - img.min()
+        # img = img / img.max()
+        # label = self.trainer.datamodule.classes[target]
+        # self.logger.experiment.add_image(f"{label}", img, self.global_step)
 
         self.cp_examples = list(
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
@@ -261,7 +260,7 @@ class ConformalTrainer(L.LightningModule):
         )
 
         if self.pid:
-            self.pid.set_setpoint(metrics["val_uncertain"] * 0.9)
+            self.pid.set_setpoint(metrics["val_uncertain"])
 
         if self.lr_method == "uncertainty":
             self.optimizers().optimizer.param_groups[0]["lr"] = (

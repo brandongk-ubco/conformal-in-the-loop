@@ -15,7 +15,7 @@
 
 	"runArgs": [
 		"--gpus=all",
-		"--shm-size=1g"
+		"--shm-size=10g"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

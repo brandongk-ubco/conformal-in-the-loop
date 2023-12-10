@@ -95,9 +95,9 @@ def train(
     ]
 
     if lr_method in ["plateau", "uncertainty"]:
-        if not pretrained:
-            logger.info("Only Use plateau or uncertainty with pretrained training.")
-            sys.exit(0)
+        # if not pretrained:
+        #     logger.info("Only Use plateau or uncertainty with pretrained training.")
+        #     sys.exit(0)
         callbacks.append(
             EarlyStopping(
                 monitor="val_realized" if selectively_backpropagate else "val_loss",
@@ -106,9 +106,9 @@ def train(
             )
         )
 
-    if lr_method == "one_cycle" and pretrained:
-        logger.info("Only Use one_cycle with scratch training.")
-        sys.exit(0)
+    # if lr_method == "one_cycle" and pretrained:
+    #     logger.info("Only Use one_cycle with scratch training.")
+    #     sys.exit(0)
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 

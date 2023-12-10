@@ -37,7 +37,7 @@ class AugmentedCIFAR10(CIFAR10):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        assert img.shape == (3, 32, 32)
+        assert img.shape == (3, 224, 224)
 
         return img, target
 
