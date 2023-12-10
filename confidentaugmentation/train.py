@@ -25,9 +25,8 @@ def train(
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
     mapie_alpha: float = 0.10,
-    model_name: str = "efficientnet-b0",
+    model_name: str = "efficientnet_b0",
     pretrained: bool = False,
-    use_pid: bool = False,
     Kp: float = -5e-3,
     lr_method: str = "plateau",
     lr: float = 1e-3,
@@ -42,17 +41,12 @@ def train(
         logger.info("Can't use MAPIE with backprop_all.")
         sys.exit(0)
 
-    if use_pid:
-        if not (control_weight_decay or control_pixel_dropout):
-            logger.info("Can't use PID without control.")
-            sys.exit(0)
-        pid = PID(Kp, 1.0, output_limits=(0, 1))
-    else:
-        if control_weight_decay or control_pixel_dropout:
-            logger.info("Can't use control without PID.")
-            sys.exit(0)
-        pid = None
+    use_pid = control_weight_decay or control_pixel_dropout
 
+    pid = None
+    if use_pid:
+        pid = PID(Kp, 1.0, output_limits=(0, 1))
+        
     # dm = MNISTDataModule()
     if dataset == "cifar10":
         dm = AugmentedCIFAR10DataModule(augmentation_policy_path)
@@ -138,6 +132,7 @@ def train(
         callbacks=callbacks,
         log_every_n_steps=10,
         accumulate_grad_batches=3,
+        limit_train_batches=100
     )
 
     trainer.fit(model=model, datamodule=dm)
