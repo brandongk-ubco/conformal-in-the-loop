@@ -28,7 +28,7 @@ def train(
     model_name: str = "efficientnet-b0",
     pretrained: bool = False,
     use_pid: bool = False,
-    Kp: float = 5e-3,
+    Kp: float = -5e-3,
     lr_method: str = "plateau",
     lr: float = 1e-3,
     optimizer: str = "Adam",

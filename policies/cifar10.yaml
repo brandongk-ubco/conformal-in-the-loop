@@ -13,7 +13,12 @@ transform:
       p: 1.00
       px:
         - 0
-        - 4
+        - 24
+    - __class_fullname__: CoarseDropout
+      p: 0.50
+      max_holes: 1
+      max_height: 32
+      max_width: 32
   bbox_params:
   keypoint_params:
   additional_targets: {}

@@ -157,7 +157,7 @@ class ConformalTrainer(L.LightningModule):
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
         if self.pid is not None:
-            pid_value = float(self.pid(metrics["uncertain"]))
+            pid_value = float(self.pid(metrics["realized"]))
             self.log(
                 "pid_setpoint",
                 self.pid.get_setpoint(),
@@ -260,7 +260,7 @@ class ConformalTrainer(L.LightningModule):
         )
 
         if self.pid:
-            self.pid.set_setpoint(metrics["val_uncertain"])
+            self.pid.set_setpoint(metrics["val_realized"])
 
         if self.lr_method == "uncertainty":
             self.optimizers().optimizer.param_groups[0]["lr"] = (
