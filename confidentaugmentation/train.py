@@ -27,9 +27,9 @@ def train(
     mapie_alpha: float = 0.10,
     model_name: str = "efficientnet_b0",
     pretrained: bool = False,
-    Kp: float = -5e-3,
+    Kp: float = 1e-4,
     lr_method: str = "plateau",
-    lr: float = 1e-3,
+    lr: float = 5e-4,
     optimizer: str = "Adam",
     control_weight_decay: bool = False,
     control_pixel_dropout: bool = False,
@@ -45,7 +45,7 @@ def train(
 
     pid = None
     if use_pid:
-        pid = PID(Kp, 1.0, output_limits=(0, 1))
+        pid = PID(Kp, 0.5, initial_value=0.30, output_limits=(0.1, 0.5))
         
     # dm = MNISTDataModule()
     if dataset == "cifar10":

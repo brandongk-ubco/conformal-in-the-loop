@@ -39,7 +39,7 @@ class AugmentedMNIST(MNIST):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        assert img.shape == (1, 32, 32)
+        assert img.shape == (1, 28, 28)
 
         return img, target
 

@@ -56,13 +56,10 @@ class SimpleTrainer(L.LightningModule):
         test_loss = F.cross_entropy(y_hat, y)
 
         self.accuracy(y_hat, y)
+        self.log("val_accuracy", self.accuracy)
 
-        self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
-        self.log("val_loss", test_loss, on_step=False, on_epoch=True)
-
-    def on_validation_epoch_start(self) -> None:
-        super().on_validation_epoch_start()
-        self.accuracy.reset()
+        val_loss = F.cross_entropy(y_hat, y)
+        self.log("val_loss", val_loss)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -75,61 +72,9 @@ class SimpleTrainer(L.LightningModule):
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-
-        if self.optimizer == "SGD":
-            optimizer = torch.optim.SGD(
-                self.parameters(),
-                lr=self.lr,
-                momentum=0.9,
-                weight_decay=self.lr * 0.1,
-                nesterov=True,
-            )
-        elif self.optimizer == "Adam":
-            optimizer = torch.optim.Adam(
-                self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
-            )
-        else:
-            raise NotImplementedError("Optimizer not implemented.")
-
-        scheduler = None
-
-        if self.lr_method == "one_cycle":
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer,
-                max_lr=self.lr * 10,
-                epochs=self.trainer.max_epochs,
-                steps_per_epoch=len(dataloader),
-                anneal_strategy="cos",
-                pct_start=self.warmup_epochs / self.trainer.max_epochs,
-                cycle_momentum=False,
-                div_factor=10,
-                final_div_factor=100,
-                three_phase=True,
-            )
-            interval = "step"
-
-        if self.lr_method == "plateau":
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                mode="min",
-                factor=0.2,
-                patience=10,
-                min_lr=1e-6,
-                verbose=True,
-            )
-            interval = "epoch"
-
-        if scheduler:
-            return [optimizer], [
-                {
-                    "scheduler": scheduler,
-                    "interval": interval,
-                    "monitor": "val_loss"
-                }
-            ]
-
-        return optimizer
+        return torch.optim.Adam(
+            self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
+        )
 
 
 __all__ = ["SimpleTrainer"]

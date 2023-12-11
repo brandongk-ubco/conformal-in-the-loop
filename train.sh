@@ -12,7 +12,7 @@ for augmentation_policy in "cifar10"; do
                     for lr_method in "plateau" "uncertainty"; do
                         for optimizer in "Adam"; do
                             for control_weight_decay in "--no-control-weight-decay" "--control-weight-decay"; do
-                                for control_pixel_dropout in "--no-control-pixel-dropout" "--control-pixel-dropout" ; do
+                                for control_pixel_dropout in "--control-pixel-dropout" "--no-control-pixel-dropout"; do
                                     python -m confidentaugmentation train cifar10 \
                                         "--model-name=${model_name}" \
                                         "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
@@ -26,7 +26,6 @@ for augmentation_policy in "cifar10"; do
                                 done
                             done
                         done
-                    done
                     done
                 done
             done

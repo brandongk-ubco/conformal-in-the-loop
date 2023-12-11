@@ -21,14 +21,12 @@ class MNISTDataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.transform = transforms.Compose(
             [
-                transforms.Resize(32),
-                transforms.CenterCrop(32),
                 transforms.ToTensor(),
                 transforms.Normalize((0.1307,), (0.3081,)),
             ]
         )
 
-        self.dims = (1, 32, 32)
+        self.dims = (1, 28, 28)
         self.num_classes = 10
 
     def prepare_data(self):
