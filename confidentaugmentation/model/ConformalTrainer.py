@@ -226,7 +226,7 @@ class ConformalTrainer(L.LightningModule):
         super().on_validation_epoch_end()
 
         self.mapie_classifier = MapieClassifier(
-            estimator=self, method="score", cv="prefit"
+            estimator=self, method="raps", cv="prefit", n_jobs=-1
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
 
         conformal_sets = self.mapie_classifier.predict(
