@@ -112,13 +112,14 @@ def train(
         "lightning_logs",
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "pretrained" if pretrained else "scratch",
+        lr_method,
+        optimizer,
+        mapie_method,
         "pid" if use_pid else "no_pid",
         "control_weight_decay" if control_weight_decay else "no_control_weight_decay",
         "control_pixel_dropout"
         if control_pixel_dropout
         else "no_control_pixel_dropout",
-        lr_method,
-        optimizer,
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,

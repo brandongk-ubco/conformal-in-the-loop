@@ -5,9 +5,9 @@ set -eux
 rm -rf lightning_logs
 
 for augmentation_policy in "cifar10"; do
-    for model_name in "efficientnet_b0" "efficientnet_b1" "efficientnet_b3" "efficientnet_b5"; do
+    for model_name in "efficientnet_b0"; do
         for mapie_alpha in 0.10; do
-            for selectively_backpropagate in "--selectively-backpropagate"; do
+            for selectively_backpropagate in "--selectively-backpropagate" "--no-selectively-backpropagate"; do
                 for pretrained in "--pretrained" "--no-pretrained"; do
                     for lr_method in "plateau"; do
                         for optimizer in "Adam"; do
