@@ -33,6 +33,7 @@ def train(
     optimizer: str = "Adam",
     control_weight_decay: bool = False,
     control_pixel_dropout: bool = False,
+    mapie_method = "score",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -64,6 +65,7 @@ def train(
         optimizer=optimizer,
         control_weight_decay=control_weight_decay,
         control_pixel_dropout=control_pixel_dropout,
+        mapie_method=mapie_method,
     )
 
     if selectively_backpropagate:

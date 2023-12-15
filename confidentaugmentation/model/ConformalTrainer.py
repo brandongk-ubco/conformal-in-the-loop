@@ -23,6 +23,7 @@ class ConformalTrainer(L.LightningModule):
         optimizer="Adam",
         control_weight_decay=False,
         control_pixel_dropout=False,
+        mapie_method="score",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -49,6 +50,7 @@ class ConformalTrainer(L.LightningModule):
         self.control_weight_decay = control_weight_decay
         self.control_pixel_dropout = control_pixel_dropout
         self.weight_decay = 0.0
+        self.mapie_method = mapie_method
 
     def __sklearn_is_fitted__(self):
         return True
@@ -226,7 +228,7 @@ class ConformalTrainer(L.LightningModule):
         super().on_validation_epoch_end()
 
         self.mapie_classifier = MapieClassifier(
-            estimator=self, method="raps", cv="prefit", n_jobs=-1
+            estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
 
         conformal_sets = self.mapie_classifier.predict(

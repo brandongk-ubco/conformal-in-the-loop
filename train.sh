@@ -13,16 +13,19 @@ for augmentation_policy in "cifar10"; do
                         for optimizer in "Adam"; do
                             for control_weight_decay in "--no-control-weight-decay"; do
                                 for control_pixel_dropout in "--no-control-pixel-dropout"; do
-                                    python -m confidentaugmentation train cifar10 \
-                                        "--model-name=${model_name}" \
-                                        "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
-                                        "${pretrained}" \
-                                        "${selectively_backpropagate}" \
-                                        "--mapie-alpha=${mapie_alpha}" \
-                                        "--lr-method=${lr_method}" \
-                                        "--optimizer=${optimizer}" \
-                                        "${control_weight_decay}" \
-                                        "${control_pixel_dropout}"
+                                    for mapie_method in "score" "raps"; do
+                                        python -m confidentaugmentation train cifar10 \
+                                            "--model-name=${model_name}" \
+                                            "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
+                                            "${pretrained}" \
+                                            "${selectively_backpropagate}" \
+                                            "--mapie-alpha=${mapie_alpha}" \
+                                            "--lr-method=${lr_method}" \
+                                            "--optimizer=${optimizer}" \
+                                            "${control_weight_decay}" \
+                                            "${control_pixel_dropout}" \
+                                            "--mapie-method=${mapie_method}"
+                                    done
                                 done
                             done
                         done
