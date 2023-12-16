@@ -1,5 +1,6 @@
 import numpy as np
 import pytorch_lightning as L
+import seaborn as sns
 import torch
 import torch.nn.functional as F
 from mapie.classification import MapieClassifier
@@ -51,6 +52,7 @@ class ConformalTrainer(L.LightningModule):
         self.control_pixel_dropout = control_pixel_dropout
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
+        self.examples_without_uncertainty = {}
 
     def __sklearn_is_fitted__(self):
         return True
@@ -87,7 +89,7 @@ class ConformalTrainer(L.LightningModule):
         self.realized_percentage.reset()
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, indeces = batch
 
         if self.control_pixel_dropout:
             minimum = x.min()
@@ -102,11 +104,11 @@ class ConformalTrainer(L.LightningModule):
 
         y_hat = self(x)
 
-        # img, target = x[1, :, :, :], y[1]
-        # img = img - img.min()
-        # img = img / img.max()
-        # label = self.trainer.datamodule.classes[target]
-        # self.logger.experiment.add_image(f"{label}", img, self.global_step)
+        img, target = x[1, :, :, :], y[1]
+        img = img - img.min()
+        img = img / img.max()
+        label = self.trainer.datamodule.classes[target]
+        self.logger.experiment.add_image(f"{label}", img, self.global_step)
 
         self.cp_examples = list(
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
@@ -121,6 +123,7 @@ class ConformalTrainer(L.LightningModule):
         )
 
         predicted = y_hat.argmax(axis=1)
+
         correct = predicted == y
 
         atypical = torch.tensor(num_classes == 0).to(device=self.device)
@@ -131,6 +134,15 @@ class ConformalTrainer(L.LightningModule):
             ~correct, torch.tensor(num_classes == 1).to(device=self.device)
         )
         uncertain = torch.tensor(num_classes > 1).to(device=self.device)
+
+        for i, idx in enumerate(indeces):
+            if uncertain[i]:
+                self.examples_without_uncertainty[idx] = 0
+            else:
+                if idx in self.examples_without_uncertainty:
+                    self.examples_without_uncertainty[idx] += 1
+                else:
+                    self.examples_without_uncertainty[idx] = 1
 
         atypical_percentage = atypical.sum() / len(atypical)
         realized_percentage = realized.sum() / len(realized)
@@ -197,10 +209,25 @@ class ConformalTrainer(L.LightningModule):
         else:
             loss = F.cross_entropy(y_hat, y)
 
+        self.log("loss", loss)
         return loss
 
+    def on_train_epoch_end(self) -> None:
+        examples_without_uncertainty = np.array(
+            list(self.examples_without_uncertainty.values())
+        )
+        sns_plot = sns.histplot(data=examples_without_uncertainty, stat="percent", binwidth=1, binrange=(0,20))
+        sns_plot.set_title(f"Histogram of examples without uncertainty (epoch: {self.current_epoch}, mean: {examples_without_uncertainty.mean():.2f})")
+
+        self.logger.experiment.add_figure(
+            "examples_without_uncertainty",
+            sns_plot.get_figure(),
+            self.global_step,
+        )
+
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, _ = batch
+
         y_hat = self(x)
         if isinstance(y_hat, tuple):
             y_hat, _ = y_hat

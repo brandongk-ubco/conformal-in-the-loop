@@ -4,8 +4,13 @@ transform:
   __class_fullname__: Compose
   p: 1
   transforms:
-    - __class_fullname__: ToTensorV2
+    - __class_fullname__: LongestMaxSize
       p: 1.00
+      max_size: 224
+    - __class_fullname__: PadIfNeeded
+      p: 1.00
+      min_height: 224
+      min_width: 224
   bbox_params:
   keypoint_params:
   additional_targets: {}

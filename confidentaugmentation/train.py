@@ -14,10 +14,10 @@ from timm import create_model
 
 from confidentaugmentation import cli
 from confidentaugmentation.control import PID
-from confidentaugmentation.data import AugmentedCIFAR10DataModule
+from confidentaugmentation.data import AugmentedCIFAR10DataModule, AugmentedImageNetDataModule, AugmentedMNISTDataModule
 
 from .model.ConformalTrainer import ConformalTrainer
-
+from .net import SimpleNet, MicroNet
 
 @cli.command()
 def train(
@@ -33,7 +33,7 @@ def train(
     optimizer: str = "Adam",
     control_weight_decay: bool = False,
     control_pixel_dropout: bool = False,
-    mapie_method = "score",
+    mapie_method="score",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -47,15 +47,32 @@ def train(
     pid = None
     if use_pid:
         pid = PID(Kp, 0.5, initial_value=0.30, output_limits=(0.1, 0.5))
-        
+
     # dm = MNISTDataModule()
     if dataset == "cifar10":
         dm = AugmentedCIFAR10DataModule(augmentation_policy_path)
+    elif dataset == "imagenet":
+        dm = AugmentedImageNetDataModule(augmentation_policy_path)
+    elif dataset == "mnist":
+        dm = AugmentedMNISTDataModule(augmentation_policy_path)
     else:
         raise NotImplementedError("Dataset not implemented.")
 
+    if model_name == "SimpleNet":
+        if pretrained:
+            logger.info("SimpleNet does not support pretrained.")
+            sys.exit(0)
+        net = SimpleNet(num_classes=dm.num_classes)
+    elif model_name == "MicroNet":
+        if pretrained:
+            logger.info("MicroNet does not support pretrained.")
+            sys.exit(0)
+        net = MicroNet(num_classes=dm.num_classes)
+    else:
+        net = create_model(model_name, pretrained=pretrained, num_classes=dm.num_classes)
+
     model = ConformalTrainer(
-        create_model(model_name, pretrained=pretrained, num_classes=len(dm.classes)),
+        net,
         num_classes=dm.num_classes,
         selectively_backpropagate=selectively_backpropagate,
         mapie_alpha=mapie_alpha,
@@ -134,8 +151,8 @@ def train(
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
-        accumulate_grad_batches=3,
-        limit_train_batches=100
+        # accumulate_grad_batches=3,
+        # limit_train_batches=100,
     )
 
     trainer.fit(model=model, datamodule=dm)

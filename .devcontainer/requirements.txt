@@ -8,3 +8,4 @@ isort
 black
 loguru
 academictorrents
+seaborn

@@ -2,16 +2,14 @@ import os
 
 import pytorch_lightning as L
 import torch
-import torch.nn.functional as F
-from torch import nn
 from torch.utils.data import DataLoader, random_split
-from torchvision import transforms
+from torchvision.transforms import v2
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import CIFAR10
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
-BATCH_SIZE = 200
+BATCH_SIZE = 128
 
 
 class CIFAR10DataModule(L.LightningDataModule):
@@ -28,19 +26,17 @@ class CIFAR10DataModule(L.LightningDataModule):
         "truck",
     ]
 
-    def __init__(self, data_dir: str = PATH_DATASETS):
+    def __init__(self, data_dir: str = PATH_DATASETS, image_size=32):
         super().__init__()
         self.data_dir = data_dir
-        self.transform = transforms.Compose(
+        self.transform = v2.Compose(
             [
-                transforms.Resize(224),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
+                v2.Resize(image_size, max_size=image_size + 1, antialias=False),
+                v2.CenterCrop(image_size),
             ]
         )
 
-        self.dims = (3, 32, 32)
         self.num_classes = 10
 
     def prepare_data(self):

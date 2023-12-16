@@ -4,17 +4,17 @@ set -eux
 
 rm -rf lightning_logs
 
-for augmentation_policy in "cifar10"; do
-    for model_name in "efficientnet_b0"; do
+for augmentation_policy in "noop"; do
+    for model_name in "MicroNet"; do
         for mapie_alpha in 0.10; do
-            for selectively_backpropagate in "--selectively-backpropagate" "--no-selectively-backpropagate"; do
-                for pretrained in "--pretrained" "--no-pretrained"; do
+            for selectively_backpropagate in "--selectively-backpropagate"; do
+                for pretrained in "--no-pretrained"; do
                     for lr_method in "plateau"; do
                         for optimizer in "Adam"; do
                             for control_weight_decay in "--no-control-weight-decay"; do
                                 for control_pixel_dropout in "--no-control-pixel-dropout"; do
-                                    for mapie_method in "score" "raps"; do
-                                        python -m confidentaugmentation train cifar10 \
+                                    for mapie_method in "score"; do
+                                        python -m confidentaugmentation train mnist \
                                             "--model-name=${model_name}" \
                                             "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
                                             "${pretrained}" \

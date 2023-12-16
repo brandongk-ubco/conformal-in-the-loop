@@ -6,23 +6,37 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 from torchmetrics.functional import accuracy
-from torchvision import transforms
+from torchvision.transforms import v2
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import MNIST
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
-BATCH_SIZE = 256 if torch.cuda.is_available() else 64
+BATCH_SIZE = 256
 
 
 class MNISTDataModule(L.LightningDataModule):
-    def __init__(self, data_dir: str = PATH_DATASETS):
+    classes = [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+    ]
+
+    def __init__(self, data_dir: str = PATH_DATASETS, image_size=28):
         super().__init__()
         self.data_dir = data_dir
-        self.transform = transforms.Compose(
+        self.transform = v2.Compose(
             [
-                transforms.ToTensor(),
-                transforms.Normalize((0.1307,), (0.3081,)),
+                v2.ToTensor(),
+                v2.Resize(image_size, max_size=image_size + 1, antialias=False),
+                v2.CenterCrop(image_size),
             ]
         )
 

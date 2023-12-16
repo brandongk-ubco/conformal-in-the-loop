@@ -5,14 +5,15 @@ import albumentations as A
 from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
-
+from torchvision.transforms import functional as F
 from .CIFAR10 import CIFAR10DataModule
-
+import numpy as np
+from torchvision.transforms import v2
+import torch
 
 class AugmentedCIFAR10(CIFAR10):
     augment_indices = {}
     augments = None
-    augmentation_probability = 0.0
 
     def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
         for index in train_indices:
@@ -24,21 +25,19 @@ class AugmentedCIFAR10(CIFAR10):
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, target = self.data[index], self.targets[index]
 
-        if self.augment_indices[index]:
-            augmented = self.augments(image=img)
-            img = augmented["image"]
-
-        img = Image.fromarray(img)
-
         if self.transform is not None:
             img = self.transform(img)
 
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        assert img.shape == (3, 224, 224)
+        if self.augment_indices[index]:
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
+            img = augmented["image"]
 
-        return img, target
+        F.normalize(img, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inplace=True)
+
+        return img, target, index
 
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
