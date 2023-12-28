@@ -135,7 +135,7 @@ class ConformalTrainer(L.LightningModule):
         )
         uncertain = torch.tensor(num_classes > 1).to(device=self.device)
 
-        for i, idx in enumerate(indeces):
+        for i, idx in enumerate(indeces.detach().cpu().numpy()):
             if uncertain[i]:
                 self.examples_without_uncertainty[idx] = 0
             else:
