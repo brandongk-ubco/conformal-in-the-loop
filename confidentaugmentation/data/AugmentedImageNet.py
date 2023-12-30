@@ -21,7 +21,7 @@ class AugmentedImageNet(ImageNet):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = super().__getitem__(index)
+        img, target = self.data[index], self.targets[index]
 
         if self.transform is not None:
             img = self.transform(img)
@@ -30,8 +30,10 @@ class AugmentedImageNet(ImageNet):
             target = self.target_transform(target)
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img)
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
             img = augmented["image"]
+
+        F.normalize(img, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inplace=True)
 
         return img, target, index
 

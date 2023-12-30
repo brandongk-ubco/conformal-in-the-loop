@@ -18,13 +18,14 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 class ImageNetDataModule(L.LightningDataModule):
 
-    def __init__(self, data_dir: str = PATH_DATASETS):
+    def __init__(self, data_dir: str = PATH_DATASETS, image_size=224):
         super().__init__()
         self.data_dir = data_dir
-        self.transform = transforms.Compose(
+        self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                v2.Resize(image_size, max_size=image_size + 1, antialias=False),
+                v2.CenterCrop(image_size),
             ]
         )
 
