@@ -22,7 +22,7 @@ class ImageNetDataModule(L.LightningDataModule):
         self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Resize(image_size, max_size=image_size + 1, antialias=False),
+                v2.Resize(image_size, max_size=image_size + 1, antialias=True),
                 v2.CenterCrop(image_size),
             ]
         )
