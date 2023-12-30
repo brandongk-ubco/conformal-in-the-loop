@@ -2,9 +2,9 @@ import os
 from typing import Any, Tuple
 
 import albumentations as A
-from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import ImageNet
+from torchvision.transforms import functional as F
 
 from .ImageNet import ImageNetDataModule
 
@@ -21,7 +21,7 @@ class AugmentedImageNet(ImageNet):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = self.data[index], self.targets[index]
+        img, target = super().__getitem__(index)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -61,8 +61,12 @@ class AugmentedImageNetDataModule(ImageNetDataModule):
             dataset_size = len(imagenet_full)
             val_size = int(dataset_size * 0.1)
             train_size = dataset_size - val_size
-            self.imagenet_train, self.imagenet_val = random_split(imagenet_full, [train_size, val_size])
-            imagenet_full.set_indices(self.imagenet_train.indices, self.imagenet_val.indices)
+            self.imagenet_train, self.imagenet_val = random_split(
+                imagenet_full, [train_size, val_size]
+            )
+            imagenet_full.set_indices(
+                self.imagenet_train.indices, self.imagenet_val.indices
+            )
             imagenet_full.augments = self.augments
 
         # Assign test dataset for use in dataloader(s)

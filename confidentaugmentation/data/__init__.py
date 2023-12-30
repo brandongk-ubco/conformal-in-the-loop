@@ -1,9 +1,9 @@
 from .AugmentedCIFAR10 import AugmentedCIFAR10DataModule
+from .AugmentedImageNet import AugmentedImageNetDataModule
 from .AugmentedMNIST import AugmentedMNISTDataModule
 from .CIFAR10 import CIFAR10DataModule
-from .MNist import MNISTDataModule
-from .AugmentedImageNet import AugmentedImageNetDataModule
 from .ImageNet import ImageNetDataModule
+from .MNist import MNISTDataModule
 
 __all__ = [
     "MNISTDataModule",
@@ -11,5 +11,5 @@ __all__ = [
     "AugmentedCIFAR10DataModule",
     "AugmentedMNISTDataModule",
     "AugmentedImageNetDataModule",
-    "ImageNetDataModule"
+    "ImageNetDataModule",
 ]

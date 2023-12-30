@@ -46,7 +46,7 @@ class SimpleNet(nn.Module):
         self.fc1.bias.data.fill_(0.01)
 
     def forward(self, x):
-        dropout_rate = 0.
+        dropout_rate = 0.0
 
         x = self.conv1(x)
         x = self.norm1(x)

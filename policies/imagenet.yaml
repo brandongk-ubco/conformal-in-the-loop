@@ -6,11 +6,6 @@ transform:
   transforms:
     - __class_fullname__: HorizontalFlip
       p: 0.50
-    - __class_fullname__: CropAndPad
-      p: 1.00
-      px:
-        - 0
-        - 56
     - __class_fullname__: CoarseDropout
       p: 1.00
       max_holes: 1

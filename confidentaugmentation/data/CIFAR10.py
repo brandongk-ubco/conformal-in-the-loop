@@ -3,10 +3,10 @@ import os
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
-from torchvision.transforms import v2
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import CIFAR10
+from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 BATCH_SIZE = 128

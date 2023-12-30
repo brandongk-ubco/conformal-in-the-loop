@@ -6,10 +6,9 @@ from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import functional as F
+
 from .CIFAR10 import CIFAR10DataModule
-import numpy as np
-from torchvision.transforms import v2
-import torch
+
 
 class AugmentedCIFAR10(CIFAR10):
     augment_indices = {}

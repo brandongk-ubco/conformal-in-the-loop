@@ -6,10 +6,10 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 from torchmetrics.functional import accuracy
-from torchvision.transforms import v2
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import MNIST
+from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256

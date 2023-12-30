@@ -14,10 +14,15 @@ from timm import create_model
 
 from confidentaugmentation import cli
 from confidentaugmentation.control import PID
-from confidentaugmentation.data import AugmentedCIFAR10DataModule, AugmentedImageNetDataModule, AugmentedMNISTDataModule
+from confidentaugmentation.data import (
+    AugmentedCIFAR10DataModule,
+    AugmentedImageNetDataModule,
+    AugmentedMNISTDataModule,
+)
 
 from .model.ConformalTrainer import ConformalTrainer
-from .net import SimpleNet, MicroNet
+from .net import MicroNet, SimpleNet
+
 
 @cli.command()
 def train(
@@ -69,7 +74,9 @@ def train(
             sys.exit(0)
         net = MicroNet(num_classes=dm.num_classes)
     else:
-        net = create_model(model_name, pretrained=pretrained, num_classes=dm.num_classes)
+        net = create_model(
+            model_name, pretrained=pretrained, num_classes=dm.num_classes
+        )
 
     model = ConformalTrainer(
         net,

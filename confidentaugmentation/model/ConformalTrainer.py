@@ -216,8 +216,15 @@ class ConformalTrainer(L.LightningModule):
         examples_without_uncertainty = np.array(
             list(self.examples_without_uncertainty.values())
         )
-        sns_plot = sns.histplot(data=examples_without_uncertainty, stat="percent", binwidth=1, binrange=(0,20))
-        sns_plot.set_title(f"Histogram of examples without uncertainty (epoch: {self.current_epoch}, mean: {examples_without_uncertainty.mean():.2f})")
+        sns_plot = sns.histplot(
+            data=examples_without_uncertainty,
+            stat="percent",
+            binwidth=1,
+            binrange=(0, 20),
+        )
+        sns_plot.set_title(
+            f"Histogram of examples without uncertainty (epoch: {self.current_epoch}, mean: {examples_without_uncertainty.mean():.2f})"
+        )
 
         self.logger.experiment.add_figure(
             "examples_without_uncertainty",

@@ -16,7 +16,6 @@ class MicroNet(nn.Module):
         self.fc1.bias.data.fill_(0.01)
 
     def forward(self, x):
-
         # x = self.conv1(x)
         # x = F.relu(x)
         # x = self.conv2(x)

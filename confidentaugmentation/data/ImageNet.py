@@ -1,3 +1,4 @@
+import json
 import os
 
 import pytorch_lightning as L
@@ -6,10 +7,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-from torchvision.transforms import v2
-import os
 from torchvision.datasets import ImageNet
-import json
+from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 BATCH_SIZE = 128
@@ -17,7 +16,6 @@ CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 
 class ImageNetDataModule(L.LightningDataModule):
-
     def __init__(self, data_dir: str = PATH_DATASETS, image_size=224):
         super().__init__()
         self.data_dir = data_dir
@@ -38,12 +36,16 @@ class ImageNetDataModule(L.LightningDataModule):
         imagenet_dir = os.path.join(self.data_dir, "imagenet")
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            imagenet_full = ImageNet(imagenet_dir, split="train", transform=self.transform)
+            imagenet_full = ImageNet(
+                imagenet_dir, split="train", transform=self.transform
+            )
             dataset_size = len(imagenet_full)
             val_size = int(dataset_size * 0.1)
             train_size = dataset_size - val_size
-            self.imagenet_train, self.imagenet_val = random_split(imagenet_full, [train_size, val_size])
-        
+            self.imagenet_train, self.imagenet_val = random_split(
+                imagenet_full, [train_size, val_size]
+            )
+
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
             self.imagenet_test = ImageNet(
