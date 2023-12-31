@@ -3,7 +3,6 @@ import os
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
-
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import v2

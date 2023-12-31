@@ -3,10 +3,7 @@ import os
 
 import pytorch_lightning as L
 import torch
-import torch.nn.functional as F
-from torch import nn
 from torch.utils.data import DataLoader, random_split
-from torchvision import transforms
 from torchvision.datasets import ImageNet
 from torchvision.transforms import v2
 

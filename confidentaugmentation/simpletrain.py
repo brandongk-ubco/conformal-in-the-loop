@@ -5,11 +5,8 @@ import pytorch_lightning as L
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch_lightning.callbacks import (
-    EarlyStopping,
-    LearningRateMonitor,
-    ModelCheckpoint,
-)
+from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
+                                         ModelCheckpoint)
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from confidentaugmentation import cli

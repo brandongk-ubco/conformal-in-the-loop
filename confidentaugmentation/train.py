@@ -4,21 +4,16 @@ import sys
 import pytorch_lightning as L
 import torch
 from loguru import logger
-from pytorch_lightning.callbacks import (
-    EarlyStopping,
-    LearningRateMonitor,
-    ModelCheckpoint,
-)
+from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
+                                         ModelCheckpoint)
 from pytorch_lightning.loggers import TensorBoardLogger
 from timm import create_model
 
 from confidentaugmentation import cli
 from confidentaugmentation.control import PID
-from confidentaugmentation.data import (
-    AugmentedCIFAR10DataModule,
-    AugmentedImageNetDataModule,
-    AugmentedMNISTDataModule,
-)
+from confidentaugmentation.data import (AugmentedCIFAR10DataModule,
+                                        AugmentedImageNetDataModule,
+                                        AugmentedMNISTDataModule)
 
 from .model.ConformalTrainer import ConformalTrainer
 from .net import MicroNet, SimpleNet
