@@ -16,8 +16,7 @@ from confidentaugmentation.data import (AugmentedCIFAR10DataModule,
                                         AugmentedMNISTDataModule)
 
 from .model.ConformalTrainer import ConformalTrainer
-from .net import MicroNet, SimpleNet
-
+from .net import MicroNet, SimpleNet, MicroNetInt8
 
 @cli.command()
 def train(
@@ -159,3 +158,7 @@ def train(
 
     trainer.fit(model=model, datamodule=dm)
     trainer.test(ckpt_path="best", datamodule=dm)
+    int8_net = MicroNetInt8(num_classes=dm.num_classes)
+    int8_net.load_state_dict(net.state_dict())
+    model.model = int8_net
+    trainer.test(datamodule=dm)

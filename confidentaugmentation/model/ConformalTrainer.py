@@ -7,7 +7,7 @@ from mapie.classification import MapieClassifier
 from torchmetrics.aggregation import MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 from torchvision.transforms import v2
-
+import bitsandbytes as bnb
 
 class ConformalTrainer(L.LightningModule):
     def __init__(
@@ -104,7 +104,7 @@ class ConformalTrainer(L.LightningModule):
 
         y_hat = self(x)
 
-        if self.current_epoch == 1:
+        if self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
             img = img - img.min()
             img = img / img.max()
@@ -309,20 +309,30 @@ class ConformalTrainer(L.LightningModule):
         y_hat = self(x)
         test_loss = F.cross_entropy(y_hat, y)
 
-        conformal_sets = self.mapie_classifier.predict(
-            range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
-        )[1]
+        self.cp_examples = list(
+            zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
+        )
 
-        num_classes = conformal_sets.sum(axis=1).squeeze()
+        num_classes = (
+            self.mapie_classifier.predict(
+                range(len(self.cp_examples)), alpha=[self.mapie_alpha]
+            )[1]
+            .sum(axis=1)
+            .squeeze()
+        )
 
-        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
+        predicted = y_hat.argmax(axis=1)
 
-        correct = conformal_predictions == self.val_labels
+        correct = predicted == y
 
-        atypical = num_classes == 0
-        realized = np.logical_and(correct, num_classes == 1)
-        confused = np.logical_and(~correct, num_classes == 1)
-        uncertain = num_classes > 1
+        atypical = torch.tensor(num_classes == 0).to(device=self.device)
+        realized = torch.logical_and(
+            correct, torch.tensor(num_classes == 1).to(device=self.device)
+        )
+        confused = torch.logical_and(
+            ~correct, torch.tensor(num_classes == 1).to(device=self.device)
+        )
+        uncertain = torch.tensor(num_classes > 1).to(device=self.device)
 
         atypical_percentage = atypical.sum() / len(atypical)
         realized_percentage = realized.sum() / len(realized)
@@ -357,8 +367,8 @@ class ConformalTrainer(L.LightningModule):
                 nesterov=True,
             )
         elif self.optimizer == "Adam":
-            optimizer = torch.optim.Adam(
-                self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
+            optimizer = bnb.optim.Adam8bit(
+                self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1, min_8bit_size=255
             )
         else:
             raise NotImplementedError("Optimizer not implemented.")

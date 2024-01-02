@@ -6,6 +6,7 @@ from PIL import Image
 from torch.utils.data import random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import functional as F
+from torch.nn.functional import threshold
 
 from .MNist import MNISTDataModule
 
@@ -25,7 +26,7 @@ class AugmentedMNIST(MNIST):
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, target = self.data[index], self.targets[index]
 
-        img = img.numpy()
+        img = img.unsqueeze(0)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -37,7 +38,9 @@ class AugmentedMNIST(MNIST):
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
             img = augmented["image"]
 
-        F.normalize(img, (0.1307,), (0.3081,), inplace=True)
+        img = img.float()
+        img = img / img.max()
+        img = (img > 0.5).to(img.dtype)
 
         return img, target, index
 
