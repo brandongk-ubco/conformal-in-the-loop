@@ -62,7 +62,7 @@ class CIFAR10DataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=True,
             batch_size=BATCH_SIZE,
-            persistent_workers=True,
+            persistent_workers=False,
         )
 
     def val_dataloader(self):
@@ -71,7 +71,7 @@ class CIFAR10DataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=BATCH_SIZE,
-            persistent_workers=True,
+            persistent_workers=False,
         )
 
     def test_dataloader(self):
@@ -80,5 +80,5 @@ class CIFAR10DataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=BATCH_SIZE,
-            persistent_workers=True,
+            persistent_workers=False,
         )
