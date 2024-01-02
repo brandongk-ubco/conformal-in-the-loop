@@ -166,15 +166,20 @@ class ConformalClassifier(L.LightningModule):
         examples_without_uncertainty = np.array(
             list(self.examples_without_uncertainty.values())
         )
+        bins = np.arange(0,21)
         sns_plot = sns.histplot(
             data=examples_without_uncertainty,
             stat="percent",
-            binwidth=1,
-            binrange=(0, 20),
+            bins=bins,
         )
         sns_plot.set_title(
-            f"Histogram of examples without uncertainty (epoch: {self.current_epoch}, mean: {examples_without_uncertainty.mean():.2f})"
+            f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
         )
+        sns_plot.set_xlabel(f"Number of epochs without uncertainty (mean: {examples_without_uncertainty.mean():.2f})")
+        sns_plot.set_xticks(bins + 0.5)
+        sns_plot.set_xticklabels(bins, rotation=90)
+        sns_plot.set_ylabel("Percentage of examples")
+        sns_plot.set_ylim(0, 100)
 
         self.logger.experiment.add_figure(
             "examples_without_uncertainty",
