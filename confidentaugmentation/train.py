@@ -4,18 +4,22 @@ import sys
 import pytorch_lightning as L
 import torch
 from loguru import logger
-from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
-                                         ModelCheckpoint)
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
 from pytorch_lightning.loggers import TensorBoardLogger
 from timm import create_model
 
 from confidentaugmentation import cli
-from confidentaugmentation.control import PID
-from confidentaugmentation.data import (AugmentedCIFAR10DataModule,
-                                        AugmentedImageNetDataModule,
-                                        AugmentedMNISTDataModule)
+from confidentaugmentation.data import (
+    AugmentedCIFAR10DataModule,
+    AugmentedImageNetDataModule,
+    AugmentedMNISTDataModule,
+)
 
-from .model.ConformalTrainer import ConformalTrainer
+from .model.ConformalClassifier import ConformalClassifier
 from .net import MicroNet, SimpleNet
 
 
@@ -31,8 +35,6 @@ def train(
     lr_method: str = "plateau",
     lr: float = 5e-4,
     optimizer: str = "Adam",
-    control_weight_decay: bool = False,
-    control_pixel_dropout: bool = False,
     mapie_method="score",
 ):
     L.seed_everything(42, workers=True)
@@ -41,12 +43,6 @@ def train(
     if not selectively_backpropagate and mapie_alpha != 0.10:
         logger.info("Can't use MAPIE with backprop_all.")
         sys.exit(0)
-
-    use_pid = control_weight_decay or control_pixel_dropout
-
-    pid = None
-    if use_pid:
-        pid = PID(Kp, 0.5, initial_value=0.30, output_limits=(0.1, 0.5))
 
     # dm = MNISTDataModule()
     if dataset == "cifar10":
@@ -73,17 +69,14 @@ def train(
             model_name, pretrained=pretrained, num_classes=dm.num_classes
         )
 
-    model = ConformalTrainer(
+    model = ConformalClassifier(
         net,
         num_classes=dm.num_classes,
         selectively_backpropagate=selectively_backpropagate,
         mapie_alpha=mapie_alpha,
-        pid=pid,
         lr_method=lr_method,
         lr=lr,
         optimizer=optimizer,
-        control_weight_decay=control_weight_decay,
-        control_pixel_dropout=control_pixel_dropout,
         mapie_method=mapie_method,
     )
 
@@ -133,12 +126,7 @@ def train(
         "pretrained" if pretrained else "scratch",
         lr_method,
         optimizer,
-        mapie_method,
-        "pid" if use_pid else "no_pid",
-        "control_weight_decay" if control_weight_decay else "no_control_weight_decay",
-        "control_pixel_dropout"
-        if control_pixel_dropout
-        else "no_control_pixel_dropout",
+        mapie_method
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,

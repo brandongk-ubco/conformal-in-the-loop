@@ -9,7 +9,7 @@ from torchmetrics.classification.accuracy import Accuracy
 from torchvision.transforms import v2
 
 
-class ConformalTrainer(L.LightningModule):
+class ConformalClassifier(L.LightningModule):
     def __init__(
         self,
         model,
@@ -19,11 +19,8 @@ class ConformalTrainer(L.LightningModule):
         val_mapie_alpha=0.10,
         warmup_epochs=3,
         lr=1e-3,
-        pid=None,
         lr_method="plateau",
         optimizer="Adam",
-        control_weight_decay=False,
-        control_pixel_dropout=False,
         mapie_method="score",
     ):
         super().__init__()
@@ -44,12 +41,9 @@ class ConformalTrainer(L.LightningModule):
         self.val_mapie_alpha = val_mapie_alpha
         self.warmup_epochs = warmup_epochs
         self.lr = lr
-        self.pid = pid
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
         self.optimizer = optimizer
-        self.control_weight_decay = control_weight_decay
-        self.control_pixel_dropout = control_pixel_dropout
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
         self.examples_without_uncertainty = {}
@@ -90,17 +84,6 @@ class ConformalTrainer(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
-
-        if self.control_pixel_dropout:
-            minimum = x.min()
-            x = x - minimum
-            torch.nn.functional.dropout(x, p=self.pixel_dropout, inplace=True)
-            x = x + minimum
-
-        if self.control_weight_decay:
-            self.optimizers().optimizer.param_groups[0][
-                "weight_decay"
-            ] = self.weight_decay
 
         y_hat = self(x)
 
@@ -170,40 +153,6 @@ class ConformalTrainer(L.LightningModule):
             "realized": self.realized_percentage.compute(),
         }
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-
-        if self.pid is not None:
-            pid_value = float(self.pid(metrics["atypical"]))
-            self.log(
-                "pid_setpoint",
-                self.pid.get_setpoint(),
-                on_step=True,
-                on_epoch=False,
-                prog_bar=True,
-                logger=True,
-            )
-
-            if self.control_pixel_dropout:
-                self.pixel_dropout = pid_value / 10
-                self.log(
-                    "pixel_dropout",
-                    self.pixel_dropout,
-                    on_step=True,
-                    on_epoch=False,
-                    prog_bar=True,
-                    logger=True,
-                )
-
-            if self.control_weight_decay:
-                self.weight_decay = pid_value / 1000
-
-        self.log(
-            "weight_decay",
-            self.optimizers().optimizer.param_groups[0]["weight_decay"],
-            on_step=True,
-            on_epoch=False,
-            prog_bar=True,
-            logger=True,
-        )
 
         if self.selectively_backpropagate:
             loss = F.cross_entropy(y_hat, y, reduction="none")[uncertain].mean()
@@ -295,9 +244,6 @@ class ConformalTrainer(L.LightningModule):
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
-
-        # if self.pid:
-        #     self.pid.set_setpoint(metrics["val_realized"])
 
         if self.lr_method == "uncertainty":
             self.optimizers().optimizer.param_groups[0]["lr"] = (

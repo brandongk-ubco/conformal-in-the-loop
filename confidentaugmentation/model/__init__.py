@@ -1,4 +1,3 @@
-from .ConformalTrainer import ConformalTrainer
-from .SimpleTrainer import SimpleTrainer
+from .ConformalClassifier import ConformalClassifier
 
-__all__ = ["ConformalTrainer", "SimpleTrainer"]
+__all__ = ["ConformalClassifier"]

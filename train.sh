@@ -4,17 +4,17 @@ set -eux
 
 rm -rf lightning_logs
 
-for augmentation_policy in "imagenet"; do
+dataset="cifar10"
+
+for augmentation_policy in "cifar10.32"; do
     for model_name in "efficientnet_b0"; do
         for mapie_alpha in 0.10; do
             for selectively_backpropagate in "--selectively-backpropagate"; do
-                for pretrained in "--no-pretrained"; do
+                for pretrained in "--pretrained"; do
                     for lr_method in "plateau"; do
                         for optimizer in "Adam"; do
-                            for control_weight_decay in "--no-control-weight-decay"; do
-                                for control_pixel_dropout in "--no-control-pixel-dropout"; do
                                     for mapie_method in "score"; do
-                                        python -m confidentaugmentation train imagenet \
+                                        python -m confidentaugmentation train ${dataset} \
                                             "--model-name=${model_name}" \
                                             "--augmentation-policy-path=./policies/${augmentation_policy}.yaml" \
                                             "${pretrained}" \
@@ -22,8 +22,6 @@ for augmentation_policy in "imagenet"; do
                                             "--mapie-alpha=${mapie_alpha}" \
                                             "--lr-method=${lr_method}" \
                                             "--optimizer=${optimizer}" \
-                                            "${control_weight_decay}" \
-                                            "${control_pixel_dropout}" \
                                             "--mapie-method=${mapie_method}"
                                     done
                                 done
