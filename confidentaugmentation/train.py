@@ -126,7 +126,7 @@ def train(
         "pretrained" if pretrained else "scratch",
         lr_method,
         optimizer,
-        mapie_method
+        mapie_method,
     )
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,

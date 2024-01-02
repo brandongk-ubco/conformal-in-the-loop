@@ -1,13 +1,13 @@
 import os
+from typing import Any, Tuple
 
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
-from typing import Any, Tuple
-from torchvision.transforms import functional as F
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import CIFAR10
+from torchvision.transforms import functional as F
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
