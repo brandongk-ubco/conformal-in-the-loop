@@ -27,9 +27,6 @@ class AugmentedCIFAR10(CIFAR10):
         if self.transform is not None:
             img = self.transform(img)
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
         if self.augment_indices[index]:
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
             img = augmented["image"]

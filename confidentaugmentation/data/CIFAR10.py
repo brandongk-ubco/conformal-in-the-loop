@@ -3,6 +3,8 @@ import os
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
+from typing import Any, Tuple
+from torchvision.transforms import functional as F
 
 # Note - you must have torchvision installed for this example
 from torchvision.datasets import CIFAR10
@@ -55,6 +57,16 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_test = CIFAR10(
                 self.data_dir, train=False, transform=self.transform
             )
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        img, target = self.data[index], self.targets[index]
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        F.normalize(img, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], inplace=True)
+
+        return img, target, index
 
     def train_dataloader(self):
         return DataLoader(
