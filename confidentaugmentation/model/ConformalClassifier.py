@@ -159,8 +159,8 @@ class ConformalClassifier(L.LightningModule):
             f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
         )
         sns_plot.set_xlabel(f"Number of epochs without uncertainty (mean: {examples_without_uncertainty.mean():.2f})")
-        sns_plot.set_xticks(bins + 0.5)
-        sns_plot.set_xticklabels(bins, rotation=90)
+        sns_plot.set_xticks(bins[:-1] + 0.5)
+        sns_plot.set_xticklabels(bins[:-1], rotation=90)
         sns_plot.set_ylabel("Percentage of examples")
         sns_plot.set_ylim(0, 100)
 
