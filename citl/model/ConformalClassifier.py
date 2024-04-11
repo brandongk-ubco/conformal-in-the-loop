@@ -1,12 +1,16 @@
+import json
+import os
+from statistics import mean
+
 import numpy as np
 import pytorch_lightning as L
 import seaborn as sns
 import torch
 import torch.nn.functional as F
 from mapie.classification import MapieClassifier
-from torchmetrics.aggregation import MeanMetric
+from matplotlib import pyplot as plt
+from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
-from torchvision.transforms import v2
 
 
 class ConformalClassifier(L.LightningModule):
@@ -15,13 +19,15 @@ class ConformalClassifier(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
+        pruning=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
         warmup_epochs=3,
         lr=1e-3,
         lr_method="plateau",
-        optimizer="Adam",
         mapie_method="score",
+        uncertainty_pruning_threshold=2,
+        reclamation_interval=10,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -38,10 +44,13 @@ class ConformalClassifier(L.LightningModule):
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
-        self.optimizer = optimizer
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
         self.examples_without_uncertainty = {}
+        self.uncertainty_pruning_threshold = uncertainty_pruning_threshold
+        self.reclamation_interval = reclamation_interval
+        self.pruning = pruning
+        self.control_on_realized = selectively_backpropagate or pruning
 
     def __sklearn_is_fitted__(self):
         return True
@@ -70,17 +79,34 @@ class ConformalClassifier(L.LightningModule):
 
         return y_hat
 
+    def on_train_start(self) -> None:
+        self.initial_train_set = self.trainer.train_dataloader.dataset
+        self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
+
+    def on_train_epoch_start(self) -> None:
+        current_train_size = float(len(self.trainer.train_dataloader.dataset))
+        self.log("Train Dataset Size", current_train_size / self.initial_train_size)
+
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
 
         y_hat = self(x)
 
-        if self.current_epoch == 1:
+        if self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
             img = img - img.min()
             img = img / img.max()
             label = self.trainer.datamodule.classes[target]
-            self.logger.experiment.add_image(f"{label}", img, self.global_step)
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_image(f"{label}", img, self.global_step)
+            elif type(self.trainer.logger) is NeptuneLogger:
+                fig = plt.figure()
+                if img.shape[0] == 1:
+                    plt.imshow(img.detach().cpu().moveaxis(0, -1), cmap="gray")
+                else:
+                    plt.imshow(img.detach().cpu().moveaxis(0, -1))
+                self.logger.experiment[f"training/examples/{label}"].append(fig)
+                plt.close()
 
         self.cp_examples = list(
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
@@ -138,7 +164,9 @@ class ConformalClassifier(L.LightningModule):
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
         if self.selectively_backpropagate:
-            loss = F.cross_entropy(y_hat, y, reduction="none")[uncertain].mean()
+            loss = F.cross_entropy(y_hat, y, reduction="none")[
+                torch.logical_or(uncertain, realized)
+            ].mean()
         else:
             loss = F.cross_entropy(y_hat, y)
 
@@ -146,36 +174,53 @@ class ConformalClassifier(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self) -> None:
-        examples_without_uncertainty = np.array(
-            list(self.examples_without_uncertainty.values())
-        )
-        bins = np.arange(0,21)
+        num_bins = max(21, self.current_epoch + 1)
+        bins = np.arange(0, num_bins)
+        plt.figure()
         sns_plot = sns.histplot(
-            data=examples_without_uncertainty,
+            data=self.examples_without_uncertainty,
             stat="percent",
             bins=bins,
         )
+
         sns_plot.set_title(
             f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
         )
-        sns_plot.set_xlabel(f"Number of epochs without uncertainty (mean: {examples_without_uncertainty.mean():.2f})")
+        sns_plot.set_xlabel(
+            f"Number of epochs without uncertainty (mean: {mean([v for k,v in self.examples_without_uncertainty.items()]):.2f})"
+        )
         sns_plot.set_xticks(bins[:-1] + 0.5)
         sns_plot.set_xticklabels(bins[:-1], rotation=90)
         sns_plot.set_ylabel("Percentage of examples")
         sns_plot.set_ylim(0, 100)
 
-        self.logger.experiment.add_figure(
-            "examples_without_uncertainty",
-            sns_plot.get_figure(),
-            self.global_step,
-        )
+        if type(self.trainer.logger) is TensorBoardLogger:
+            self.logger.experiment.add_figure(
+                "examples_without_uncertainty",
+                sns_plot.get_figure(),
+                self.global_step,
+            )
+        elif type(self.trainer.logger) is NeptuneLogger:
+            self.logger.experiment["training/examples_without_uncertainty"].append(
+                sns_plot.get_figure()
+            )
+        plt.close()
+
+        if self.pruning:
+            if self.current_epoch % self.reclamation_interval == 0:
+                self.trainer.datamodule.reset_train_data()
+            else:
+                examples_to_prune = [
+                    k
+                    for k, v in self.examples_without_uncertainty.items()
+                    if v >= self.uncertainty_pruning_threshold
+                ]
+                self.trainer.datamodule.remove_train_data(examples_to_prune)
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
 
         y_hat = self(x)
-        if isinstance(y_hat, tuple):
-            y_hat, _ = y_hat
 
         test_loss = F.cross_entropy(y_hat, y)
 
@@ -199,19 +244,24 @@ class ConformalClassifier(L.LightningModule):
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
 
+        calib_idx = len(self.cp_examples) // 2
+
         self.mapie_classifier = MapieClassifier(
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
-        ).fit(np.array(range(len(self.cp_examples))), [v[1] for v in self.cp_examples])
+        ).fit(
+            np.array(range(calib_idx)),
+            [v[1] for i, v in enumerate(self.cp_examples) if i < calib_idx],
+        )
 
         conformal_sets = self.mapie_classifier.predict(
-            range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
+            range(calib_idx, len(self.cp_examples)), alpha=[self.val_mapie_alpha]
         )[1]
 
         num_classes = conformal_sets.sum(axis=1).squeeze()
 
         conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
 
-        correct = conformal_predictions == self.val_labels
+        correct = conformal_predictions == self.val_labels[calib_idx:]
 
         atypical = num_classes == 0
         realized = np.logical_and(correct, num_classes == 1)
@@ -239,8 +289,9 @@ class ConformalClassifier(L.LightningModule):
             )
 
     def test_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, _ = batch
         y_hat = self(x)
+
         test_loss = F.cross_entropy(y_hat, y)
 
         self.cp_examples = list(
@@ -249,7 +300,7 @@ class ConformalClassifier(L.LightningModule):
 
         num_classes = (
             self.mapie_classifier.predict(
-                range(len(self.cp_examples)), alpha=[self.mapie_alpha]
+                range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
             )[1]
             .sum(axis=1)
             .squeeze()
@@ -289,44 +340,16 @@ class ConformalClassifier(L.LightningModule):
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
-        dataloader = self.trainer.datamodule.train_dataloader()
-
-        if self.optimizer == "SGD":
-            optimizer = torch.optim.SGD(
-                self.parameters(),
-                lr=self.lr,
-                momentum=0.9,
-                weight_decay=self.lr * 0.1,
-                nesterov=True,
-            )
-        elif self.optimizer == "Adam":
-            optimizer = torch.optim.Adam(
-                self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
-            )
-        else:
-            raise NotImplementedError("Optimizer not implemented.")
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
+        )
 
         scheduler = None
-
-        if self.lr_method == "one_cycle":
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optimizer,
-                max_lr=self.lr * 10,
-                epochs=self.trainer.max_epochs,
-                steps_per_epoch=len(dataloader),
-                anneal_strategy="cos",
-                pct_start=self.warmup_epochs / self.trainer.max_epochs,
-                cycle_momentum=False,
-                div_factor=10,
-                final_div_factor=100,
-                three_phase=True,
-            )
-            interval = "step"
 
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="max" if self.selectively_backpropagate else "min",
+                mode="max" if self.control_on_realized else "min",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-6,
@@ -339,9 +362,9 @@ class ConformalClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_realized"
-                    if self.selectively_backpropagate
-                    else "val_loss",
+                    "monitor": (
+                        "val_realized" if self.control_on_realized else "val_loss"
+                    ),
                 }
             ]
 

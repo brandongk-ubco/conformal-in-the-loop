@@ -1,4 +1,4 @@
-from confidentaugmentation import cli
+from citl import cli
 
 if __name__ == "__main__":
     cli()

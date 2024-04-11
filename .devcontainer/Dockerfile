@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt
 
 RUN apt update && apt install -y parallel
 
-ENV PATH_DATASETS=/workspaces/confident-augmentation/datasets/
+ENV PATH_DATASETS=/workspaces/conformal-in-the-loop/datasets/

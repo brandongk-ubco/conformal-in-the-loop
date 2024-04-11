@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-isort confidentaugmentation
-black confidentaugmentation
+isort citl
+black citl

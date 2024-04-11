@@ -2,6 +2,9 @@ datasets
 lightning_logs
 simple_logs
 visualizations
+*_weights.json
+log.txt
+.neptune/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

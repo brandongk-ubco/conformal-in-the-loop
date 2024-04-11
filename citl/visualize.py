@@ -6,8 +6,9 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 
-from confidentaugmentation import cli
-from confidentaugmentation.data import AugmentedCIFAR10DataModule
+from citl import cli
+
+from .dataset import Dataset
 
 
 @cli.command()
@@ -29,10 +30,7 @@ def visualize(
 
     writer = SummaryWriter(save_dir)
 
-    if dataset == "cifar10":
-        datamodule = AugmentedCIFAR10DataModule(augmentation_policy_path)
-    else:
-        raise NotImplementedError("Dataset not implemented.")
+    datamodule = Dataset.get(dataset)(augmentation_policy_path)
 
     if split == "train":
         datamodule.setup()

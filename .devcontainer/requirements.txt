@@ -7,5 +7,6 @@ typer
 isort
 black
 loguru
-academictorrents
 seaborn
+jupyter
+neptune>=1.0
