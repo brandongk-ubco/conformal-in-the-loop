@@ -4,7 +4,7 @@ set -eux
 
 rm -rf lightning_logs
 
-python -m citl train CIFAR10 efficientnet_b0 224 \
+python -m citl train CIFAR10 mobilenetv2_035 224 \
     "--augmentation-policy-path=./policies/cifar10.224.yaml" \
     "--selectively-backpropagate" \
     "--mapie-alpha=0.10" \

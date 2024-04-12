@@ -44,7 +44,7 @@ def train(
     datamodule = Dataset.get(dataset)(augmentation_policy_path)
     datamodule.set_image_size(image_size, greyscale)
 
-    net = create_model(model_name, num_classes=datamodule.num_classes)
+    net = create_model(model_name, num_classes=datamodule.num_classes, drop_rate=0.2)
 
     if greyscale:
         net = nn.Sequential(nn.Conv2d(1, 3, 1), net)
