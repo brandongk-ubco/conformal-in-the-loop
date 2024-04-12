@@ -1,5 +1,3 @@
-import json
-import os
 from statistics import mean
 
 import numpy as np
@@ -7,13 +5,14 @@ import pytorch_lightning as L
 import seaborn as sns
 import torch
 import torch.nn.functional as F
-from mapie.classification import MapieClassifier
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 
+from ..ConformalClassifier import ConformalClassifier
 
-class ConformalClassifier(L.LightningModule):
+
+class CITLClassifier(L.LightningModule):
     def __init__(
         self,
         model,
@@ -32,6 +31,8 @@ class ConformalClassifier(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
+
+        self.conformal_classifier = ConformalClassifier()
 
         self.classes_ = range(num_classes)
 
@@ -52,18 +53,6 @@ class ConformalClassifier(L.LightningModule):
         self.pruning = pruning
         self.control_on_realized = selectively_backpropagate or pruning
 
-    def __sklearn_is_fitted__(self):
-        return True
-
-    def fit(self, x, y):
-        raise NotImplementedError("Cannot fit this way.")
-
-    def predict(self, x):
-        return self.predict_proba(x).argmax(axis=1)
-
-    def predict_proba(self, x):
-        return np.array([v[0] for v in self.cp_examples])[x]
-
     def forward(self, x):
         if x.dim() == 2:
             y_hat = self.model(x.unsqueeze(0).unsqueeze(0))
@@ -82,6 +71,7 @@ class ConformalClassifier(L.LightningModule):
     def on_train_start(self) -> None:
         self.initial_train_set = self.trainer.train_dataloader.dataset
         self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
+        self.conformal_classifier.reset()
 
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
@@ -108,16 +98,12 @@ class ConformalClassifier(L.LightningModule):
                 self.logger.experiment[f"training/examples/{label}"].append(fig)
                 plt.close()
 
-        self.cp_examples = list(
+        self.conformal_classifier.cp_examples = list(
             zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
         )
 
         num_classes = (
-            self.mapie_classifier.predict(
-                range(len(self.cp_examples)), alpha=[self.mapie_alpha]
-            )[1]
-            .sum(axis=1)
-            .squeeze()
+
         )
 
         predicted = y_hat.argmax(axis=1)
@@ -219,14 +205,14 @@ class ConformalClassifier(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
+        import pdb
+        pdb.set_trace()
 
         y_hat = self(x)
 
         test_loss = F.cross_entropy(y_hat, y)
 
-        self.cp_examples += list(
-            zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
-        )
+        self.conformal_classifier.append(y_hat, y)
 
         self.val_labels += list(y.detach().cpu().numpy())
 
@@ -245,13 +231,6 @@ class ConformalClassifier(L.LightningModule):
         super().on_validation_epoch_end()
 
         calib_idx = len(self.cp_examples) // 2
-
-        self.mapie_classifier = MapieClassifier(
-            estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
-        ).fit(
-            np.array(range(calib_idx)),
-            [v[1] for i, v in enumerate(self.cp_examples) if i < calib_idx],
-        )
 
         conformal_sets = self.mapie_classifier.predict(
             range(calib_idx, len(self.cp_examples)), alpha=[self.val_mapie_alpha]
