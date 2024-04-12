@@ -65,6 +65,11 @@ class CIFAR10DataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.num_classes = 10
 
+    def remove_item(self, index: int) -> None:
+        del self.data[index]
+        del self.targets[index]
+
+
     def set_image_size(self, image_size: int, greyscale: bool):
         self.image_size = image_size
         if greyscale:
@@ -94,6 +99,17 @@ class CIFAR10DataModule(L.LightningDataModule):
     def prepare_data(self):
         CIFAR10(self.data_dir, train=True)
         CIFAR10(self.data_dir, train=False)
+
+    def remove_train_example(self, idx):
+        del self.cifar_train.indices[idx]
+
+    def reset_train_data(self):
+        self.cifar_train.indices = self.initial_train_indices.copy()
+
+    def remove_train_data(self, indices_to_remove):
+        self.cifar_train.indices = list(
+            set(self.cifar_train.indices) - set(indices_to_remove)
+        )
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
