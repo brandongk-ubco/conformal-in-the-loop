@@ -16,7 +16,7 @@ from torch import nn
 from citl import cli
 
 from .dataset import Dataset
-from .model.ConformalClassifier import ConformalClassifier
+from .model.CITLClassifier import CITLClassifier
 
 
 @cli.command()
@@ -51,7 +51,7 @@ def train(
 
     control_on_realized = selectively_backpropagate or pruning
 
-    model = ConformalClassifier(
+    model = CITLClassifier(
         net,
         num_classes=datamodule.num_classes,
         selectively_backpropagate=selectively_backpropagate,

@@ -1,0 +1,96 @@
+from mapie.classification import MapieClassifier
+import numpy as np
+import torch
+
+class ConformalClassifier():
+
+    def __init__(self, mapie_method="aps"):
+        self.mapie_method = mapie_method
+        self.mapie_classifier = None
+        self.cp_examples = None
+        self.val_labels = None
+
+    def __sklearn_is_fitted__(self):
+        return True
+    
+    def reset(self):
+        self.cp_examples = None
+        self.val_labels = None
+
+    def append(self, y_hat, y):
+        if torch.is_tensor(y_hat):
+            y_hat = y_hat.detach().cpu().numpy()
+        if torch.is_tensor(y):
+            y = y.detach().cpu().numpy()
+
+        assert y.ndim == 1
+        assert y_hat.ndim == 2
+
+        if self.cp_examples is None:
+            self.cp_examples = y_hat
+        else:
+            self.cp_examples = np.row_stack([self.cp_examples, y_hat])
+
+        if self.val_labels is None:
+            self.val_labels = y
+        else:
+            self.val_labels = np.append(self.val_labels, y)
+
+        assert self.cp_examples.shape[0] == len(self.val_labels)
+    
+    def fit(self):
+        y = self.val_labels
+        y_hat = self.cp_examples
+
+        num_examples = len(y)
+
+        assert y_hat.shape[0] == num_examples
+        self.classes_ = range(y_hat.shape[1])
+        
+        self.cp_examples = y_hat
+
+        self.mapie_classifier = MapieClassifier(
+            estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
+        ).fit(
+            np.array(range(num_examples)),
+            y,
+        )
+
+    def measure_uncertainty(self, alphas=[0.1]):
+        y = self.val_labels
+        y_hat = self.cp_examples
+
+        num_examples = len(y)
+
+        conformal_sets = self.mapie_classifier.predict(
+            range(num_examples), alpha=alphas
+        )[1]
+
+        num_classes = conformal_sets.sum(axis=1).squeeze()
+
+        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
+        correct = conformal_predictions == self.val_labels
+
+        atypical = num_classes == 0
+        realized = np.logical_and(correct, num_classes == 1)
+        confused = np.logical_and(~correct, num_classes == 1)
+        uncertain = num_classes > 1
+
+        results = {
+            "conformal_sets": conformal_sets,
+            "num_classes": num_classes,
+            "atypical": atypical,
+            "realized": realized,
+            "confused": confused,
+            "uncertain": uncertain,
+        }
+        return results
+
+    def predict(self, x):
+        return self.predict_proba(x).argmax(axis=1)
+
+    def predict_proba(self, x):
+        return self.cp_examples[x]
+
+
+__all__ = ["ConformalClassifier"]

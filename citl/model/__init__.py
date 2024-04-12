@@ -1,3 +1,3 @@
-from .ConformalClassifier import ConformalClassifier
+from .CITLClassifier import CITLClassifier
 
-__all__ = ["ConformalClassifier"]
+__all__ = ["CITLClassifier"]

@@ -1,0 +1,6 @@
+# pyproject.toml
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = [
+    "test"
+]
