@@ -129,4 +129,4 @@ def train(
     )
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test()
+    trainer.test(datamodule=datamodule)

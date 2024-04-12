@@ -21,7 +21,6 @@ class CITLClassifier(L.LightningModule):
         pruning=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
-        warmup_epochs=3,
         lr=1e-3,
         lr_method="plateau",
         mapie_method="score",
@@ -32,16 +31,13 @@ class CITLClassifier(L.LightningModule):
         self.save_hyperparameters(ignore=["model"])
         self.model = model
 
-        self.conformal_classifier = ConformalClassifier()
+        self.conformal_classifier = ConformalClassifier(mapie_method=mapie_method)
 
-        self.classes_ = range(num_classes)
-
-        self.accuracy = Accuracy(task="multiclass", num_classes=len(self.classes_))
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
         self.val_mapie_alpha = val_mapie_alpha
-        self.warmup_epochs = warmup_epochs
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
@@ -76,6 +72,7 @@ class CITLClassifier(L.LightningModule):
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
+        self.no_uncertainty = True
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
@@ -98,26 +95,16 @@ class CITLClassifier(L.LightningModule):
                 self.logger.experiment[f"training/examples/{label}"].append(fig)
                 plt.close()
 
-        self.conformal_classifier.cp_examples = list(
-            zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
-        )
+        self.conformal_classifier.reset()
+        self.conformal_classifier.append(y_hat, y)
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.mapie_alpha])
+        
+        metrics = dict([ (k, v.mean()) for k,v in uncertainty.items()])
+        if metrics["uncertain"] > 0.0:
+            self.no_uncertainty = False
+        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
-        num_classes = (
-
-        )
-
-        predicted = y_hat.argmax(axis=1)
-
-        correct = predicted == y
-
-        atypical = torch.tensor(num_classes == 0).to(device=self.device)
-        realized = torch.logical_and(
-            correct, torch.tensor(num_classes == 1).to(device=self.device)
-        )
-        confused = torch.logical_and(
-            ~correct, torch.tensor(num_classes == 1).to(device=self.device)
-        )
-        uncertain = torch.tensor(num_classes > 1).to(device=self.device)
+        uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
 
         for i, idx in enumerate(indeces.detach().cpu().numpy()):
             if uncertain[i]:
@@ -128,30 +115,9 @@ class CITLClassifier(L.LightningModule):
                 else:
                     self.examples_without_uncertainty[idx] = 1
 
-        atypical_percentage = atypical.sum() / len(atypical)
-        realized_percentage = realized.sum() / len(realized)
-        confused_percentage = confused.sum() / len(confused)
-        uncertain_percentage = uncertain.sum() / len(uncertain)
-
-        torch.testing.assert_close(
-            atypical_percentage
-            + realized_percentage
-            + confused_percentage
-            + uncertain_percentage,
-            torch.tensor(1.0).to(self.device),
-        )
-
-        metrics = {
-            "atypical": atypical_percentage,
-            "uncertain": uncertain_percentage,
-            "confused": confused_percentage,
-            "realized": realized_percentage,
-        }
-        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-
         if self.selectively_backpropagate:
             loss = F.cross_entropy(y_hat, y, reduction="none")[
-                torch.logical_or(uncertain, realized)
+                uncertain
             ].mean()
         else:
             loss = F.cross_entropy(y_hat, y)
@@ -160,6 +126,9 @@ class CITLClassifier(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self) -> None:
+        if self.selectively_backpropagate and self.no_uncertainty:
+            self.trainer.should_stop = True
+
         num_bins = max(21, self.current_epoch + 1)
         bins = np.arange(0, num_bins)
         plt.figure()
@@ -203,61 +172,34 @@ class CITLClassifier(L.LightningModule):
                 ]
                 self.trainer.datamodule.remove_train_data(examples_to_prune)
 
+    def on_validation_epoch_start(self) -> None:
+        super().on_validation_epoch_start()
+        self.accuracy.reset()
+        self.conformal_classifier.reset()
+
+
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
-        import pdb
-        pdb.set_trace()
-
         y_hat = self(x)
 
         test_loss = F.cross_entropy(y_hat, y)
 
         self.conformal_classifier.append(y_hat, y)
 
-        self.val_labels += list(y.detach().cpu().numpy())
-
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
         self.log("val_loss", test_loss, on_step=False, on_epoch=True)
 
-    def on_validation_epoch_start(self) -> None:
-        super().on_validation_epoch_start()
-        self.accuracy.reset()
-        self.cp_examples = []
-        self.val_labels = []
 
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
 
-        calib_idx = len(self.cp_examples) // 2
-
-        conformal_sets = self.mapie_classifier.predict(
-            range(calib_idx, len(self.cp_examples)), alpha=[self.val_mapie_alpha]
-        )[1]
-
-        num_classes = conformal_sets.sum(axis=1).squeeze()
-
-        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
-
-        correct = conformal_predictions == self.val_labels[calib_idx:]
-
-        atypical = num_classes == 0
-        realized = np.logical_and(correct, num_classes == 1)
-        confused = np.logical_and(~correct, num_classes == 1)
-        uncertain = num_classes > 1
-
-        atypical_percentage = atypical.sum() / len(atypical)
-        realized_percentage = realized.sum() / len(realized)
-        confused_percentage = confused.sum() / len(confused)
-        uncertain_percentage = uncertain.sum() / len(uncertain)
-
-        metrics = {
-            "val_atypical": atypical_percentage,
-            "val_uncertain": uncertain_percentage,
-            "val_confused": confused_percentage,
-            "val_realized": realized_percentage,
-        }
+        calib_percent = 0.2
+        uncertainty = self.conformal_classifier.fit(percentage=calib_percent)
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.val_mapie_alpha], percentage=1-calib_percent)
+        
+        metrics = dict([ (f"val_{k}", v.mean()) for k,v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
@@ -273,42 +215,11 @@ class CITLClassifier(L.LightningModule):
 
         test_loss = F.cross_entropy(y_hat, y)
 
-        self.cp_examples = list(
-            zip(y_hat.detach().softmax(axis=1).cpu().numpy(), y.detach().cpu().numpy())
-        )
-
-        num_classes = (
-            self.mapie_classifier.predict(
-                range(len(self.cp_examples)), alpha=[self.val_mapie_alpha]
-            )[1]
-            .sum(axis=1)
-            .squeeze()
-        )
-
-        predicted = y_hat.argmax(axis=1)
-        correct = predicted == y
-
-        atypical = torch.tensor(num_classes == 0).to(device=self.device)
-        realized = torch.logical_and(
-            correct, torch.tensor(num_classes == 1).to(device=self.device)
-        )
-        confused = torch.logical_and(
-            ~correct, torch.tensor(num_classes == 1).to(device=self.device)
-        )
-        uncertain = torch.tensor(num_classes > 1).to(device=self.device)
-
-        atypical_percentage = atypical.sum() / len(atypical)
-        realized_percentage = realized.sum() / len(realized)
-        confused_percentage = confused.sum() / len(confused)
-        uncertain_percentage = uncertain.sum() / len(uncertain)
-
-        metrics = {
-            "test_atypical": atypical_percentage,
-            "test_uncertain": uncertain_percentage,
-            "test_confused": confused_percentage,
-            "test_realized": realized_percentage,
-        }
-
+        self.conformal_classifier.reset()
+        self.conformal_classifier.append(y_hat, y)
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.val_mapie_alpha])
+        
+        metrics = dict([ (f"test_{k}", v.mean()) for k,v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )

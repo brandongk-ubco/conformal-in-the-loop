@@ -19,7 +19,7 @@ class ConformalClassifier():
 
     def append(self, y_hat, y):
         if torch.is_tensor(y_hat):
-            y_hat = y_hat.detach().cpu().numpy()
+            y_hat = y_hat.softmax(axis=1).detach().cpu().numpy()
         if torch.is_tensor(y):
             y = y.detach().cpu().numpy()
 
@@ -38,38 +38,38 @@ class ConformalClassifier():
 
         assert self.cp_examples.shape[0] == len(self.val_labels)
     
-    def fit(self):
-        y = self.val_labels
-        y_hat = self.cp_examples
+    def fit(self, percentage=1.0):
+        num_available = len(self.val_labels)
+        use_idx = int(num_available * percentage)
+
+        y = self.val_labels[:use_idx]
+        y_hat = self.cp_examples[:use_idx]
 
         num_examples = len(y)
 
         assert y_hat.shape[0] == num_examples
         self.classes_ = range(y_hat.shape[1])
         
-        self.cp_examples = y_hat
-
         self.mapie_classifier = MapieClassifier(
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(
-            np.array(range(num_examples)),
+            np.array(range(use_idx)),
             y,
         )
 
-    def measure_uncertainty(self, alphas=[0.1]):
-        y = self.val_labels
-        y_hat = self.cp_examples
+    def measure_uncertainty(self, percentage=1.0, alphas=[0.1]):
+        num_available = len(self.val_labels)
+        use_idx = num_available - int(num_available * percentage)
 
-        num_examples = len(y)
+        y = self.val_labels[use_idx:]
 
         conformal_sets = self.mapie_classifier.predict(
-            range(num_examples), alpha=alphas
+            range(use_idx, num_available), alpha=alphas
         )[1]
 
         num_classes = conformal_sets.sum(axis=1).squeeze()
-
         conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
-        correct = conformal_predictions == self.val_labels
+        correct = conformal_predictions == y
 
         atypical = num_classes == 0
         realized = np.logical_and(correct, num_classes == 1)
@@ -77,14 +77,13 @@ class ConformalClassifier():
         uncertain = num_classes > 1
 
         results = {
-            "conformal_sets": conformal_sets,
-            "num_classes": num_classes,
+            "prediction_set_size": num_classes,
             "atypical": atypical,
             "realized": realized,
             "confused": confused,
             "uncertain": uncertain,
         }
-        return results
+        return conformal_sets, results
 
     def predict(self, x):
         return self.predict_proba(x).argmax(axis=1)
