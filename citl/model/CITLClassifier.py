@@ -72,7 +72,7 @@ class CITLClassifier(L.LightningModule):
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
-        self.no_uncertainty = True
+        self.has_backpropped = False
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
@@ -97,14 +97,17 @@ class CITLClassifier(L.LightningModule):
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.mapie_alpha])
-        
-        metrics = dict([ (k, v.mean()) for k,v in uncertainty.items()])
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(
+            alphas=[self.mapie_alpha]
+        )
+
+        metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
         if metrics["uncertain"] > 0.0:
             self.no_uncertainty = False
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
         uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
+        realized = torch.tensor(uncertainty["realized"]).to(device=self.device)
 
         for i, idx in enumerate(indeces.detach().cpu().numpy()):
             if uncertain[i]:
@@ -116,10 +119,12 @@ class CITLClassifier(L.LightningModule):
                     self.examples_without_uncertainty[idx] = 1
 
         if self.selectively_backpropagate:
-            loss = F.cross_entropy(y_hat, y, reduction="none")[
-                uncertain
-            ].mean()
+            to_backprop = torch.logical_or(uncertain, realized)
+            if to_backprop.sum() > 0:
+                self.has_backpropped = True
+            loss = F.cross_entropy(y_hat, y, reduction="none")[to_backprop].mean()
         else:
+            self.has_backpropped = True
             loss = F.cross_entropy(y_hat, y)
 
         self.log("loss", loss)
@@ -177,7 +182,6 @@ class CITLClassifier(L.LightningModule):
         self.accuracy.reset()
         self.conformal_classifier.reset()
 
-
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
@@ -191,15 +195,16 @@ class CITLClassifier(L.LightningModule):
 
         self.log("val_loss", test_loss, on_step=False, on_epoch=True)
 
-
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
 
         calib_percent = 0.2
         uncertainty = self.conformal_classifier.fit(percentage=calib_percent)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.val_mapie_alpha], percentage=1-calib_percent)
-        
-        metrics = dict([ (f"val_{k}", v.mean()) for k,v in uncertainty.items()])
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(
+            alphas=[self.val_mapie_alpha], percentage=1 - calib_percent
+        )
+
+        metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
@@ -217,9 +222,11 @@ class CITLClassifier(L.LightningModule):
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(alphas=[self.val_mapie_alpha])
-        
-        metrics = dict([ (f"test_{k}", v.mean()) for k,v in uncertainty.items()])
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(
+            alphas=[self.val_mapie_alpha]
+        )
+
+        metrics = dict([(f"test_{k}", v.mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )

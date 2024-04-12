@@ -1,8 +1,9 @@
-from mapie.classification import MapieClassifier
 import numpy as np
 import torch
+from mapie.classification import MapieClassifier
 
-class ConformalClassifier():
+
+class ConformalClassifier:
 
     def __init__(self, mapie_method="aps"):
         self.mapie_method = mapie_method
@@ -12,7 +13,7 @@ class ConformalClassifier():
 
     def __sklearn_is_fitted__(self):
         return True
-    
+
     def reset(self):
         self.cp_examples = None
         self.val_labels = None
@@ -37,7 +38,7 @@ class ConformalClassifier():
             self.val_labels = np.append(self.val_labels, y)
 
         assert self.cp_examples.shape[0] == len(self.val_labels)
-    
+
     def fit(self, percentage=1.0):
         num_available = len(self.val_labels)
         use_idx = int(num_available * percentage)
@@ -49,7 +50,7 @@ class ConformalClassifier():
 
         assert y_hat.shape[0] == num_examples
         self.classes_ = range(y_hat.shape[1])
-        
+
         self.mapie_classifier = MapieClassifier(
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(

@@ -4,10 +4,6 @@ transform:
   __class_fullname__: Compose
   p: 1
   transforms:
-    - __class_fullname__: Resize
-      p: 1.00
-      height: 32
-      width: 32
     - __class_fullname__: HorizontalFlip
       p: 0.50
     - __class_fullname__: CropAndPad

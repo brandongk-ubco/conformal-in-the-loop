@@ -69,7 +69,6 @@ class CIFAR10DataModule(L.LightningDataModule):
         del self.data[index]
         del self.targets[index]
 
-
     def set_image_size(self, image_size: int, greyscale: bool):
         self.image_size = image_size
         if greyscale:

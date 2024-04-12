@@ -129,4 +129,4 @@ def train(
     )
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(datamodule=datamodule)
+    trainer.test(ckpt_path="best", datamodule=datamodule)
