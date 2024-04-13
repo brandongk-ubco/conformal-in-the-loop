@@ -5,14 +5,14 @@ import albumentations as A
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import CIFAR10 as BaseDataset
+from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 BATCH_SIZE = 128
 
 
-class CIFAR10(BaseDataset):
+class Cityscapes(BaseDataset):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.augment_indices = {}
@@ -26,22 +26,24 @@ class CIFAR10(BaseDataset):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = self.data[index], self.targets[index]
+        img, mask = super().__getitem__(index)
 
         if self.transform is not None:
             img = self.transform(img)
+            mask = self.transform(mask)
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask.numpy().transpose(1, 2, 0))
             img = augmented["image"]
+            mask = augmented["mask"]
 
-        return img, target, index
+        return img, mask, index
 
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
-class CIFAR10DataModule(L.LightningDataModule):
+class CityscapesDataModule(L.LightningDataModule):
     classes = [
         "airplane",
         "automobile",
@@ -57,14 +59,14 @@ class CIFAR10DataModule(L.LightningDataModule):
 
     augments = None
 
-    task = "classification"
+    task = "segmentation"
 
     def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
         super().__init__()
 
         assert os.path.exists(augmentation_policy_path)
         self.augments = A.load(augmentation_policy_path, data_format="yaml")
-        self.data_dir = data_dir
+        self.data_dir = os.path.join(data_dir, "Cityscapes")
         self.num_classes = 10
 
     def remove_item(self, index: int) -> None:
@@ -98,36 +100,41 @@ class CIFAR10DataModule(L.LightningDataModule):
             )
 
     def prepare_data(self):
-        CIFAR10(self.data_dir, train=True)
-        CIFAR10(self.data_dir, train=False)
+        assert os.path.exists(self.data_dir)
 
     def remove_train_example(self, idx):
-        del self.cifar_train.indices[idx]
+        del self.cityscapes_train.indices[idx]
 
     def reset_train_data(self):
-        self.cifar_train.indices = self.initial_train_indices.copy()
+        self.cityscapes_train.indices = self.initial_train_indices.copy()
 
     def remove_train_data(self, indices_to_remove):
-        self.cifar_train.indices = list(
-            set(self.cifar_train.indices) - set(indices_to_remove)
+        self.cityscapes_train.indices = list(
+            set(self.cityscapes_train.indices) - set(indices_to_remove)
         )
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            cifar_full = CIFAR10(self.data_dir, train=True, transform=self.transform)
-            self.cifar_train, self.cifar_val = random_split(cifar_full, [45000, 5000])
-            cifar_full.set_indices(self.cifar_train.indices, self.cifar_val.indices)
-            cifar_full.augments = self.augments
+            cityscapes_full = Cityscapes(
+                self.data_dir, split="train", mode="fine", target_type='semantic', transform=self.transform
+            )
+            train_size = int(len(cityscapes_full) * 0.8)
+            test_size = int(len(cityscapes_full) - train_size)
+            self.cityscapes_train, self.cityscapes_val = random_split(cityscapes_full, [train_size, test_size])
+            cityscapes_full.set_indices(
+                self.cityscapes_train.indices, self.cityscapes_val.indices
+            )
+            cityscapes_full.augments = self.augments
 
         if stage == "test" or stage is None:
-            self.cifar_test = CIFAR10(
-                self.data_dir, train=False, transform=self.transform
+            self.cityscapes_test = Cityscapes(
+                self.data_dir, split="val", mode="fine", target_type='semantic', transform=self.transform
             )
-            self.cifar_test.set_indices([], range(len(self.cifar_test)))
+            self.cityscapes_test.set_indices([], range(len(self.cityscapes_test)))
 
     def train_dataloader(self):
         return DataLoader(
-            self.cifar_train,
+            self.cityscapes_train,
             num_workers=os.cpu_count(),
             shuffle=True,
             batch_size=BATCH_SIZE,
@@ -137,7 +144,7 @@ class CIFAR10DataModule(L.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(
-            self.cifar_val,
+            self.cityscapes_val,
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=BATCH_SIZE,
@@ -146,7 +153,7 @@ class CIFAR10DataModule(L.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(
-            self.cifar_test,
+            self.cityscapes_test,
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=BATCH_SIZE,
@@ -154,4 +161,4 @@ class CIFAR10DataModule(L.LightningDataModule):
         )
 
 
-__all__ = ["CIFAR10DataModule"]
+__all__ = ["CityscapesDataModule"]

@@ -65,6 +65,8 @@ class MNISTDataModule(L.LightningDataModule):
 
     augments = None
 
+    task = "classification"
+
     def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
         super().__init__()
 

@@ -17,6 +17,7 @@ from citl import cli
 
 from .dataset import Dataset
 from .model.CITLClassifier import CITLClassifier
+from .model.CITLSegmenter import CITLSegmenter
 
 
 @cli.command()
@@ -51,7 +52,14 @@ def train(
 
     control_on_realized = selectively_backpropagate or pruning
 
-    model = CITLClassifier(
+    if datamodule.task == "classification":
+        model = CITLClassifier
+    elif datamodule.task == "segmentation":
+        model = CITLSegmenter
+    else:
+        raise ValueError("Unknown task")
+
+    model = model(
         net,
         num_classes=datamodule.num_classes,
         selectively_backpropagate=selectively_backpropagate,
