@@ -5,6 +5,7 @@ import albumentations as A
 import numpy as np
 import pytorch_lightning as L
 import torch
+from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
@@ -33,16 +34,26 @@ class Cityscapes(BaseDataset):
             img = self.transform(img)
 
         img = img.numpy()
-
         raw_mask = np.array(raw_mask)
+
+        resize_transform = A.Compose(
+            [
+                A.Resize(256, 512),
+                A.CenterCrop(256, 512),
+                ToTensorV2(),
+            ]
+        )
+
+        augmented = resize_transform(image=img.transpose(1, 2, 0), mask=raw_mask)
+        img = augmented["image"]
+        raw_mask = augmented["mask"]
+
         mask = np.zeros_like(raw_mask)
         for k in mapping_20:
             mask[raw_mask == k] = mapping_20[k]
 
         if self.augment_indices[index]:
-            augmented = self.augments(
-                image=img.transpose(1, 2, 0), mask=mask.transpose(1, 2, 0)
-            )
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask)
             img = augmented["image"]
             mask = augmented["mask"]
 
@@ -92,6 +103,7 @@ mapping_20 = {
 
 class CityscapesDataModule(L.LightningDataModule):
     classes = [
+        "background",
         "road",
         "sidewalk",
         "building",
@@ -126,9 +138,7 @@ class CityscapesDataModule(L.LightningDataModule):
         self.num_classes = len(self.classes)
 
         self.transform = v2.Compose(
-            [
-                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-            ]
+            [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
         )
 
     def remove_item(self, index: int) -> None:

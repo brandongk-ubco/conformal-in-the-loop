@@ -18,7 +18,20 @@ class ConformalClassifier:
         self.cp_examples = None
         self.val_labels = None
 
-    def append(self, y_hat, y):
+    def append(self, y_hat, y, percent=None):
+
+        if y_hat.ndim > 2:
+            y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
+
+        if y.ndim > 1:
+            y = y.flatten()
+
+        if percent is not None:
+            probs = torch.empty(len(y)).uniform_()
+            idx = (probs < percent).nonzero().flatten()
+            y = y[idx]
+            y_hat = y_hat[idx, :]
+
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1).detach().cpu().numpy()
         if torch.is_tensor(y):

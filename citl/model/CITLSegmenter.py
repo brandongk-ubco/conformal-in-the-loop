@@ -67,17 +67,21 @@ class CITLSegmenter(L.LightningModule):
     def on_train_start(self) -> None:
         self.initial_train_set = self.trainer.train_dataloader.dataset
         self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
-        self.conformal_classifier.reset()
 
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.has_backpropped = False
+        self.conformal_classifier.reset()
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
 
         y_hat = self(x)
+
+        loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        self.log("loss", loss)
+        return loss
 
         if self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
@@ -122,60 +126,62 @@ class CITLSegmenter(L.LightningModule):
             to_backprop = torch.logical_or(uncertain, realized)
             if to_backprop.sum() > 0:
                 self.has_backpropped = True
+
+            raise NotImplementedError("This code is not implemented yet")
             loss = F.cross_entropy(y_hat, y, reduction="none")[to_backprop].mean()
         else:
             self.has_backpropped = True
-            loss = F.cross_entropy(y_hat, y)
+            loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.log("loss", loss)
         return loss
 
-    def on_train_epoch_end(self) -> None:
-        if self.selectively_backpropagate and self.no_uncertainty:
-            self.trainer.should_stop = True
+    # def on_train_epoch_end(self) -> None:
+    #     if self.selectively_backpropagate and self.no_uncertainty:
+    #         self.trainer.should_stop = True
 
-        num_bins = max(21, self.current_epoch + 1)
-        bins = np.arange(0, num_bins)
-        plt.figure()
-        sns_plot = sns.histplot(
-            data=self.examples_without_uncertainty,
-            stat="percent",
-            bins=bins,
-        )
+    #     num_bins = max(21, self.current_epoch + 1)
+    #     bins = np.arange(0, num_bins)
+    #     plt.figure()
+    #     sns_plot = sns.histplot(
+    #         data=self.examples_without_uncertainty,
+    #         stat="percent",
+    #         bins=bins,
+    #     )
 
-        sns_plot.set_title(
-            f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
-        )
-        sns_plot.set_xlabel(
-            f"Number of epochs without uncertainty (mean: {mean([v for k,v in self.examples_without_uncertainty.items()]):.2f})"
-        )
-        sns_plot.set_xticks(bins[:-1] + 0.5)
-        sns_plot.set_xticklabels(bins[:-1], rotation=90)
-        sns_plot.set_ylabel("Percentage of examples")
-        sns_plot.set_ylim(0, 100)
+    #     sns_plot.set_title(
+    #         f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
+    #     )
+    #     sns_plot.set_xlabel(
+    #         f"Number of epochs without uncertainty (mean: {mean([v for k,v in self.examples_without_uncertainty.items()]):.2f})"
+    #     )
+    #     sns_plot.set_xticks(bins[:-1] + 0.5)
+    #     sns_plot.set_xticklabels(bins[:-1], rotation=90)
+    #     sns_plot.set_ylabel("Percentage of examples")
+    #     sns_plot.set_ylim(0, 100)
 
-        if type(self.trainer.logger) is TensorBoardLogger:
-            self.logger.experiment.add_figure(
-                "examples_without_uncertainty",
-                sns_plot.get_figure(),
-                self.global_step,
-            )
-        elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["training/examples_without_uncertainty"].append(
-                sns_plot.get_figure()
-            )
-        plt.close()
+    #     if type(self.trainer.logger) is TensorBoardLogger:
+    #         self.logger.experiment.add_figure(
+    #             "examples_without_uncertainty",
+    #             sns_plot.get_figure(),
+    #             self.global_step,
+    #         )
+    #     elif type(self.trainer.logger) is NeptuneLogger:
+    #         self.logger.experiment["training/examples_without_uncertainty"].append(
+    #             sns_plot.get_figure()
+    #         )
+    #     plt.close()
 
-        if self.pruning:
-            if self.current_epoch % self.reclamation_interval == 0:
-                self.trainer.datamodule.reset_train_data()
-            else:
-                examples_to_prune = [
-                    k
-                    for k, v in self.examples_without_uncertainty.items()
-                    if v >= self.uncertainty_pruning_threshold
-                ]
-                self.trainer.datamodule.remove_train_data(examples_to_prune)
+    #     if self.pruning:
+    #         if self.current_epoch % self.reclamation_interval == 0:
+    #             self.trainer.datamodule.reset_train_data()
+    #         else:
+    #             examples_to_prune = [
+    #                 k
+    #                 for k, v in self.examples_without_uncertainty.items()
+    #                 if v >= self.uncertainty_pruning_threshold
+    #             ]
+    #             self.trainer.datamodule.remove_train_data(examples_to_prune)
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
@@ -186,14 +192,14 @@ class CITLSegmenter(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y)
+        val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
-        self.conformal_classifier.append(y_hat, y)
+        self.conformal_classifier.append(y_hat, y, percent=0.01)
 
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
-        self.log("val_loss", test_loss, on_step=False, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_validation_epoch_end(self) -> None:
         super().on_validation_epoch_end()
@@ -218,7 +224,7 @@ class CITLSegmenter(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y)
+        test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)

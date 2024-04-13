@@ -13,7 +13,7 @@ class TestConformalClassifier:
     def test_fit(self):
         num_examples = 256
         num_classes = 10
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
@@ -24,14 +24,14 @@ class TestConformalClassifier:
     def test_predict(self):
         num_examples = 256
         num_classes = 10
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
         cc.append(y_hat, y)
         cc.fit()
 
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc.reset()
@@ -47,7 +47,7 @@ class TestConformalClassifier:
     def test_predict_percentage(self):
         num_examples = 256
         num_classes = 10
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
@@ -64,7 +64,7 @@ class TestConformalClassifier:
     def test_predict_uneven_percentage(self):
         num_examples = 256
         num_classes = 10
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
@@ -82,7 +82,7 @@ class TestConformalClassifier:
     def test_accumulate_predict(self):
         num_examples = 256
         num_classes = 10
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
@@ -91,11 +91,11 @@ class TestConformalClassifier:
 
         cc.reset()
 
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
         cc.append(y_hat, y)
 
-        y_hat = torch.rand(num_examples, num_classes).softmax(axis=1).numpy()
+        y_hat = torch.rand(num_examples, num_classes)
         y = y_hat.argmax(axis=1)
         cc.append(y_hat, y)
 
@@ -106,3 +106,29 @@ class TestConformalClassifier:
         assert len(results["realized"]) == 2 * num_examples
         assert len(results["confused"]) == 2 * num_examples
         assert len(results["uncertain"]) == 2 * num_examples
+
+
+    def test_fit_two_dimensions(self):
+        num_examples = 3
+        num_classes = 10
+        num_x = 4
+        num_y = 5
+        y_hat = torch.rand(num_examples, num_classes, num_x, num_y)
+        y = y_hat.argmax(axis=1)
+
+        cc = ConformalClassifier()
+        cc.append(y_hat, y)
+        cc.fit()
+
+    def test_fit_two_dimensions_with_sampling(self):
+        num_examples = 3
+        num_classes = 10
+        num_x = 4
+        num_y = 5
+        y_hat = torch.rand(num_examples, num_classes, num_x, num_y)
+        y = y_hat.argmax(axis=1)
+
+        cc = ConformalClassifier()
+        cc.append(y_hat, y, percent=0.5)
+        assert(len(cc.val_labels) < num_examples * num_x * num_y)
+        cc.fit()
