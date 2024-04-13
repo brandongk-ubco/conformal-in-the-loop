@@ -2,6 +2,7 @@ import os
 from typing import Any, Tuple
 
 import albumentations as A
+import numpy as np
 import pytorch_lightning as L
 import torch
 from torch.utils.data import DataLoader, random_split
@@ -9,7 +10,7 @@ from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
-BATCH_SIZE = 128
+BATCH_SIZE = 4
 
 
 class Cityscapes(BaseDataset):
@@ -26,14 +27,22 @@ class Cityscapes(BaseDataset):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, mask = super().__getitem__(index)
+        img, raw_mask = super().__getitem__(index)
 
         if self.transform is not None:
             img = self.transform(img)
-            mask = self.transform(mask)
+
+        img = img.numpy()
+
+        raw_mask = np.array(raw_mask)
+        mask = np.zeros_like(raw_mask)
+        for k in mapping_20:
+            mask[raw_mask == k] = mapping_20[k]
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask.numpy().transpose(1, 2, 0))
+            augmented = self.augments(
+                image=img.transpose(1, 2, 0), mask=mask.transpose(1, 2, 0)
+            )
             img = augmented["image"]
             mask = augmented["mask"]
 
@@ -42,19 +51,66 @@ class Cityscapes(BaseDataset):
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
+mapping_20 = {
+    0: 0,
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0,
+    7: 1,
+    8: 2,
+    9: 0,
+    10: 0,
+    11: 3,
+    12: 4,
+    13: 5,
+    14: 0,
+    15: 0,
+    16: 0,
+    17: 6,
+    18: 0,
+    19: 7,
+    20: 8,
+    21: 9,
+    22: 10,
+    23: 11,
+    24: 12,
+    25: 13,
+    26: 14,
+    27: 15,
+    28: 16,
+    29: 0,
+    30: 0,
+    31: 17,
+    32: 18,
+    33: 19,
+    -1: 0,
+}
+
 
 class CityscapesDataModule(L.LightningDataModule):
     classes = [
-        "airplane",
-        "automobile",
-        "bird",
-        "cat",
-        "deer",
-        "dog",
-        "frog",
-        "horse",
-        "ship",
+        "road",
+        "sidewalk",
+        "building",
+        "wall",
+        "fence",
+        "pole",
+        "traffic light",
+        "traffic sign",
+        "vegetation",
+        "terrain",
+        "sky",
+        "person",
+        "rider",
+        "car",
         "truck",
+        "bus",
+        "train",
+        "motorcycle",
+        "bicycle",
     ]
 
     augments = None
@@ -67,37 +123,17 @@ class CityscapesDataModule(L.LightningDataModule):
         assert os.path.exists(augmentation_policy_path)
         self.augments = A.load(augmentation_policy_path, data_format="yaml")
         self.data_dir = os.path.join(data_dir, "Cityscapes")
-        self.num_classes = 10
+        self.num_classes = len(self.classes)
+
+        self.transform = v2.Compose(
+            [
+                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
+            ]
+        )
 
     def remove_item(self, index: int) -> None:
         del self.data[index]
         del self.targets[index]
-
-    def set_image_size(self, image_size: int, greyscale: bool):
-        self.image_size = image_size
-        if greyscale:
-            self.transform = v2.Compose(
-                [
-                    v2.Compose(
-                        [
-                            v2.ToImage(),
-                            v2.ToDtype(torch.uint8, scale=True),
-                            v2.ToDtype(torch.float32, scale=True),
-                        ]
-                    ),
-                    v2.Grayscale(num_output_channels=1),
-                    v2.Resize(image_size, max_size=image_size + 1, antialias=False),
-                    v2.CenterCrop(image_size),
-                ]
-            )
-        else:
-            self.transform = v2.Compose(
-                [
-                    v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                    v2.Resize(image_size, max_size=image_size + 1, antialias=False),
-                    v2.CenterCrop(image_size),
-                ]
-            )
 
     def prepare_data(self):
         assert os.path.exists(self.data_dir)
@@ -116,11 +152,17 @@ class CityscapesDataModule(L.LightningDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             cityscapes_full = Cityscapes(
-                self.data_dir, split="train", mode="fine", target_type='semantic', transform=self.transform
+                self.data_dir,
+                split="train",
+                mode="fine",
+                target_type="semantic",
+                transform=self.transform,
             )
             train_size = int(len(cityscapes_full) * 0.8)
             test_size = int(len(cityscapes_full) - train_size)
-            self.cityscapes_train, self.cityscapes_val = random_split(cityscapes_full, [train_size, test_size])
+            self.cityscapes_train, self.cityscapes_val = random_split(
+                cityscapes_full, [train_size, test_size]
+            )
             cityscapes_full.set_indices(
                 self.cityscapes_train.indices, self.cityscapes_val.indices
             )
@@ -128,7 +170,11 @@ class CityscapesDataModule(L.LightningDataModule):
 
         if stage == "test" or stage is None:
             self.cityscapes_test = Cityscapes(
-                self.data_dir, split="val", mode="fine", target_type='semantic', transform=self.transform
+                self.data_dir,
+                split="val",
+                mode="fine",
+                target_type="semantic",
+                transform=self.transform,
             )
             self.cityscapes_test.set_indices([], range(len(self.cityscapes_test)))
 

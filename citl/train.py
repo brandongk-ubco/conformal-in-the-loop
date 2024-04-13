@@ -2,6 +2,7 @@ import os
 import sys
 
 import pytorch_lightning as L
+import segmentation_models_pytorch as smp
 import torch
 from loguru import logger
 from pytorch_lightning.callbacks import (
@@ -24,7 +25,7 @@ from .model.CITLSegmenter import CITLSegmenter
 def train(
     dataset: Dataset,
     model_name: str,
-    image_size: int,
+    image_size: int = None,
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
@@ -43,9 +44,18 @@ def train(
 
     assert os.path.exists(augmentation_policy_path)
     datamodule = Dataset.get(dataset)(augmentation_policy_path)
-    datamodule.set_image_size(image_size, greyscale)
 
-    net = create_model(model_name, num_classes=datamodule.num_classes, drop_rate=0.2)
+    if datamodule.task == "classification":
+        net = create_model(
+            model_name, num_classes=datamodule.num_classes, drop_rate=0.2
+        )
+        datamodule.set_image_size(image_size, greyscale)
+    elif datamodule.task == "segmentation":
+        net = smp.Unet(
+            encoder_name=model_name,
+            in_channels=3,
+            classes=datamodule.num_classes,
+        )
 
     if greyscale:
         net = nn.Sequential(nn.Conv2d(1, 3, 1), net)
