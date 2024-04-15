@@ -80,33 +80,6 @@ def train(
         mapie_method=mapie_method,
     )
 
-    if control_on_realized:
-        model_checkpoint = ModelCheckpoint(
-            filename="{epoch}-{val_realized:.3f}",
-            monitor="val_realized",
-            mode="max",
-            save_top_k=1,
-            save_last=True,
-        )
-    else:
-        model_checkpoint = ModelCheckpoint(
-            filename="{epoch}-{val_loss:.3f}",
-            monitor="val_loss",
-            mode="min",
-            save_top_k=1,
-            save_last=True,
-        )
-
-    callbacks = [
-        LearningRateMonitor(logging_interval="step"),
-        model_checkpoint,
-        EarlyStopping(
-            monitor="val_realized" if control_on_realized else "val_loss",
-            mode="max" if control_on_realized else "min",
-            patience=20,
-        ),
-    ]
-
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
 
     save_dir = os.path.join(
@@ -135,6 +108,32 @@ def train(
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
+
+    model_callback_config = {
+        "filename": "{epoch}-{val_loss:.3f}",
+        "monitor": "val_loss",
+        "mode": "min",
+        "save_top_k": 1,
+        "save_last": True,
+    }
+    if trainer_logger.log_dir:
+        model_callback_config["dirpath"] = os.path.join(
+            trainer_logger.log_dir, "checkpoints"
+        )
+
+    if control_on_realized:
+        model_callback_config["monitor"] = "val_realized"
+        model_callback_config["mode"] = "max"
+
+    callbacks = [
+        LearningRateMonitor(logging_interval="step"),
+        ModelCheckpoint(**model_callback_config),
+        EarlyStopping(
+            monitor="val_realized" if control_on_realized else "val_loss",
+            mode="max" if control_on_realized else "min",
+            patience=20,
+        ),
+    ]
 
     trainer = L.Trainer(
         logger=trainer_logger,

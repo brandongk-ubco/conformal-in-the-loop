@@ -72,28 +72,27 @@ class CITLClassifier(L.LightningModule):
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
-        self.has_backpropped = False
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
 
         y_hat = self(x)
 
-        if self.current_epoch == 0:
-            img, target = x[1, :, :, :], y[1]
-            img = img - img.min()
-            img = img / img.max()
-            label = self.trainer.datamodule.classes[target]
-            if type(self.trainer.logger) is TensorBoardLogger:
-                self.logger.experiment.add_image(f"{label}", img, self.global_step)
-            elif type(self.trainer.logger) is NeptuneLogger:
-                fig = plt.figure()
-                if img.shape[0] == 1:
-                    plt.imshow(img.detach().cpu().moveaxis(0, -1), cmap="gray")
-                else:
-                    plt.imshow(img.detach().cpu().moveaxis(0, -1))
-                self.logger.experiment[f"training/examples/{label}"].append(fig)
-                plt.close()
+        # if self.current_epoch == 0:
+        #     img, target = x[1, :, :, :], y[1]
+        #     img = img - img.min()
+        #     img = img / img.max()
+        #     label = self.trainer.datamodule.classes[target]
+        #     if type(self.trainer.logger) is TensorBoardLogger:
+        #         self.logger.experiment.add_image(f"{label}", img, self.global_step)
+        #     elif type(self.trainer.logger) is NeptuneLogger:
+        #         fig = plt.figure()
+        #         if img.shape[0] == 1:
+        #             plt.imshow(img.detach().cpu().moveaxis(0, -1), cmap="gray")
+        #         else:
+        #             plt.imshow(img.detach().cpu().moveaxis(0, -1))
+        #         self.logger.experiment[f"training/examples/{label}"].append(fig)
+        #         plt.close()
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
@@ -102,12 +101,9 @@ class CITLClassifier(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        if metrics["uncertain"] > 0.0:
-            self.no_uncertainty = False
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
 
         uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
-        realized = torch.tensor(uncertainty["realized"]).to(device=self.device)
 
         for i, idx in enumerate(indeces.detach().cpu().numpy()):
             if uncertain[i]:
@@ -119,10 +115,10 @@ class CITLClassifier(L.LightningModule):
                     self.examples_without_uncertainty[idx] = 1
 
         if self.selectively_backpropagate:
-            to_backprop = torch.logical_or(uncertain, realized)
-            if to_backprop.sum() > 0:
-                self.has_backpropped = True
-            loss = F.cross_entropy(y_hat, y, reduction="none")[to_backprop].mean()
+            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(device=self.device)
+            loss = F.cross_entropy(y_hat, y, reduction="none")
+            loss = loss * prediction_set_size
+            loss = loss.mean()
         else:
             self.has_backpropped = True
             loss = F.cross_entropy(y_hat, y)
@@ -131,9 +127,6 @@ class CITLClassifier(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self) -> None:
-        if self.selectively_backpropagate and self.no_uncertainty:
-            self.trainer.should_stop = True
-
         num_bins = max(21, self.current_epoch + 1)
         bins = np.arange(0, num_bins)
         plt.figure()
