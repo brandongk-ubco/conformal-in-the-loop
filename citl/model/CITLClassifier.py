@@ -115,7 +115,9 @@ class CITLClassifier(L.LightningModule):
                     self.examples_without_uncertainty[idx] = 1
 
         if self.selectively_backpropagate:
-            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(device=self.device)
+            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
+                device=self.device
+            )
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss = loss * prediction_set_size
             loss = loss.mean()
@@ -174,6 +176,8 @@ class CITLClassifier(L.LightningModule):
         super().on_validation_epoch_start()
         self.accuracy.reset()
         self.conformal_classifier.reset()
+        self.val_batch_idx_fit_uncertainty = len(self.trainer.datamodule.val_dataloader()) // 5
+
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -183,29 +187,22 @@ class CITLClassifier(L.LightningModule):
 
         self.conformal_classifier.append(y_hat, y)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
+        if batch_idx == self.val_batch_idx_fit_uncertainty:
+            self.conformal_classifier.fit()
 
-        self.log("val_loss", test_loss, on_step=False, on_epoch=True)
-
-    def on_validation_epoch_end(self) -> None:
-        super().on_validation_epoch_end()
-
-        calib_percent = 0.2
-        uncertainty = self.conformal_classifier.fit(percentage=calib_percent)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.val_mapie_alpha], percentage=1 - calib_percent
-        )
-
-        metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(
-            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
-        )
-
-        if self.lr_method == "uncertainty":
-            self.optimizers().optimizer.param_groups[0]["lr"] = (
-                self.lr * 0.9 * metrics["val_uncertain"] + self.lr * 0.1
+        if batch_idx > self.val_batch_idx_fit_uncertainty:
+            _, uncertainty = self.conformal_classifier.measure_uncertainty(
+                alphas=[self.val_mapie_alpha]
             )
+
+            metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
+            self.log_dict(metrics, prog_bar=True)
+
+        self.accuracy(y_hat, y)
+        self.log("val_accuracy", self.accuracy, prog_bar=True)
+
+        self.log("val_loss", test_loss)
+
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -213,7 +210,6 @@ class CITLClassifier(L.LightningModule):
 
         test_loss = F.cross_entropy(y_hat, y)
 
-        self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
             alphas=[self.val_mapie_alpha]

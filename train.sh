@@ -2,7 +2,8 @@
 
 set -eux
 
-# rm -rf lightning_logs
+rm -rf lightning_logs
+rm .*.ckpt || true
 
 IMAGE_SIZE=224
 

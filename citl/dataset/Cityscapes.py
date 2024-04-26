@@ -11,7 +11,6 @@ from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
-BATCH_SIZE = 4
 
 
 class Cityscapes(BaseDataset):
@@ -129,13 +128,19 @@ class CityscapesDataModule(L.LightningDataModule):
 
     task = "segmentation"
 
-    def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
+    def __init__(
+        self,
+        augmentation_policy_path,
+        batch_size: int = 4,
+        data_dir: str = PATH_DATASETS,
+    ):
         super().__init__()
 
         assert os.path.exists(augmentation_policy_path)
         self.augments = A.load(augmentation_policy_path, data_format="yaml")
         self.data_dir = os.path.join(data_dir, "Cityscapes")
         self.num_classes = len(self.classes)
+        self.batch_size = batch_size
 
         self.transform = v2.Compose(
             [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
@@ -193,7 +198,7 @@ class CityscapesDataModule(L.LightningDataModule):
             self.cityscapes_train,
             num_workers=os.cpu_count(),
             shuffle=True,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=False,
             drop_last=True,
         )
@@ -203,7 +208,7 @@ class CityscapesDataModule(L.LightningDataModule):
             self.cityscapes_val,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=False,
         )
 
@@ -212,7 +217,7 @@ class CityscapesDataModule(L.LightningDataModule):
             self.cityscapes_test,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=False,
         )
 

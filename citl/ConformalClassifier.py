@@ -8,18 +8,16 @@ class ConformalClassifier:
     def __init__(self, mapie_method="aps"):
         self.mapie_method = mapie_method
         self.mapie_classifier = None
-        self.cp_examples = None
-        self.val_labels = None
+        self.reset()
 
     def __sklearn_is_fitted__(self):
         return True
 
     def reset(self):
-        self.cp_examples = None
-        self.val_labels = None
+        self.cp_examples = []
+        self.val_labels = []
 
     def append(self, y_hat, y, percent=None):
-
         if y_hat.ndim > 2:
             y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
 
@@ -40,50 +38,39 @@ class ConformalClassifier:
         assert y.ndim == 1
         assert y_hat.ndim == 2
 
-        if self.cp_examples is None:
-            self.cp_examples = y_hat
-        else:
-            self.cp_examples = np.row_stack([self.cp_examples, y_hat])
+        self.cp_examples.append(y_hat)
+        self.val_labels.append(y)
 
-        if self.val_labels is None:
-            self.val_labels = y
-        else:
-            self.val_labels = np.append(self.val_labels, y)
+    def fit(self):
+        self.cp_examples = np.concatenate(self.cp_examples, axis=0)
+        self.val_labels = np.concatenate(self.val_labels, axis=0)
 
-        assert self.cp_examples.shape[0] == len(self.val_labels)
-
-    def fit(self, percentage=1.0):
-        num_available = len(self.val_labels)
-        use_idx = int(num_available * percentage)
-
-        y = self.val_labels[:use_idx]
-        y_hat = self.cp_examples[:use_idx]
-
-        num_examples = len(y)
-
-        assert y_hat.shape[0] == num_examples
-        self.classes_ = range(y_hat.shape[1])
+        self.classes_ = range(self.cp_examples.shape[1])
+        num_examples = len(self.cp_examples)
 
         self.mapie_classifier = MapieClassifier(
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(
-            np.array(range(use_idx)),
-            y,
+            np.array(range(num_examples)),
+            self.cp_examples.argmax(axis=1),
         )
 
-    def measure_uncertainty(self, percentage=1.0, alphas=[0.1]):
-        num_available = len(self.val_labels)
-        use_idx = num_available - int(num_available * percentage)
+        self.cp_examples = []
+        self.val_labels = []
 
-        y = self.val_labels[use_idx:]
+    def measure_uncertainty(self, alphas=[0.1]):
+        self.cp_examples = np.concatenate(self.cp_examples, axis=0)
+        self.val_labels = np.concatenate(self.val_labels, axis=0)
+
+        num_examples = len(self.cp_examples)
 
         conformal_sets = self.mapie_classifier.predict(
-            range(use_idx, num_available), alpha=alphas
+            range(num_examples), alpha=alphas
         )[1]
 
         num_classes = conformal_sets.sum(axis=1).squeeze()
         conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
-        correct = conformal_predictions == y
+        correct = conformal_predictions == self.val_labels
 
         atypical = num_classes == 0
         realized = np.logical_and(correct, num_classes == 1)
@@ -97,6 +84,10 @@ class ConformalClassifier:
             "confused": confused,
             "uncertain": uncertain,
         }
+
+        self.val_labels = []
+        self.cp_examples = []
+        
         return conformal_sets, results
 
     def predict(self, x):

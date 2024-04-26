@@ -9,7 +9,6 @@ from torchvision.datasets import MNIST as BaseDataset
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
-BATCH_SIZE = 256
 
 
 class MNIST(BaseDataset):
@@ -67,11 +66,17 @@ class MNISTDataModule(L.LightningDataModule):
 
     task = "classification"
 
-    def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
+    def __init__(
+        self,
+        augmentation_policy_path,
+        batch_size: int = 256,
+        data_dir: str = PATH_DATASETS,
+    ):
         super().__init__()
 
         self.data_dir = data_dir
         self.num_classes = 10
+        self.batch_size = batch_size
 
         assert os.path.exists(augmentation_policy_path)
 
@@ -123,7 +128,7 @@ class MNISTDataModule(L.LightningDataModule):
             self.mnist_train,
             num_workers=os.cpu_count(),
             shuffle=True,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=True,
         )
 
@@ -132,7 +137,7 @@ class MNISTDataModule(L.LightningDataModule):
             self.mnist_val,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=True,
         )
 
@@ -142,7 +147,7 @@ class MNISTDataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=False,
             pin_memory=True,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             persistent_workers=True,
         )
 

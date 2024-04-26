@@ -11,6 +11,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
+from pytorch_lightning.tuner import Tuner
 from timm import create_model
 from torch import nn
 
@@ -144,6 +145,10 @@ def train(
         log_every_n_steps=10,
         reload_dataloaders_every_n_epochs=1 if pruning else 0,
     )
+
+    tuner = Tuner(trainer)
+    tuner.scale_batch_size(model, datamodule=datamodule, max_trials=7)
+    tuner.lr_find(model, datamodule=datamodule, max_lr=1e-2)
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(ckpt_path="best", datamodule=datamodule)
