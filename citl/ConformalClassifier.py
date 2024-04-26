@@ -52,13 +52,15 @@ class ConformalClassifier:
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(
             np.array(range(num_examples)),
-            self.cp_examples.argmax(axis=1),
+            self.val_labels,
         )
 
         self.cp_examples = []
         self.val_labels = []
 
     def measure_uncertainty(self, alphas=[0.1]):
+        if self.mapie_classifier is None:
+            return None
         self.cp_examples = np.concatenate(self.cp_examples, axis=0)
         self.val_labels = np.concatenate(self.val_labels, axis=0)
 
@@ -87,7 +89,7 @@ class ConformalClassifier:
 
         self.val_labels = []
         self.cp_examples = []
-        
+
         return conformal_sets, results
 
     def predict(self, x):
