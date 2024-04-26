@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from mapie.classification import MapieClassifier
-
+from loguru import logger
 
 class ConformalClassifier:
 
@@ -59,12 +59,20 @@ class ConformalClassifier:
         self.val_labels = []
 
     def measure_uncertainty(self, alphas=[0.1]):
-        if self.mapie_classifier is None:
-            return None
         self.cp_examples = np.concatenate(self.cp_examples, axis=0)
         self.val_labels = np.concatenate(self.val_labels, axis=0)
 
+        self.classes_ = range(self.cp_examples.shape[1])
         num_examples = len(self.cp_examples)
+
+        if self.mapie_classifier is None:
+            logger.warning("MAPIE model not fit, fitting now.  Uncertainty may be inaccurate.")
+            self.mapie_classifier = MapieClassifier(
+                estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
+            ).fit(
+                np.array(range(num_examples)),
+                self.val_labels,
+            )
 
         conformal_sets = self.mapie_classifier.predict(
             range(num_examples), alpha=alphas
