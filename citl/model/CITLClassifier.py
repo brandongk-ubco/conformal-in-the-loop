@@ -84,21 +84,12 @@ class CITLClassifier(L.LightningModule):
 
         y_hat = self(x)
 
-        # if self.current_epoch == 0:
-        #     img, target = x[1, :, :, :], y[1]
-        #     img = img - img.min()
-        #     img = img / img.max()
-        #     label = self.trainer.datamodule.classes[target]
-        #     if type(self.trainer.logger) is TensorBoardLogger:
-        #         self.logger.experiment.add_image(f"{label}", img, self.global_step)
-        #     elif type(self.trainer.logger) is NeptuneLogger:
-        #         fig = plt.figure()
-        #         if img.shape[0] == 1:
-        #             plt.imshow(img.detach().cpu().moveaxis(0, -1), cmap="gray")
-        #         else:
-        #             plt.imshow(img.detach().cpu().moveaxis(0, -1))
-        #         self.logger.experiment[f"training/examples/{label}"].append(fig)
-        #         plt.close()
+        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
+            img, target = x[1, :, :, :], y[1]
+            img = img - img.min()
+            img = img / img.max()
+            label = self.trainer.datamodule.classes[target]
+            self.logger.experiment.add_image(f"{label}", img, self.global_step)
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
@@ -200,7 +191,7 @@ class CITLClassifier(L.LightningModule):
         sns_plot.set_ylabel("Relative Weighting")
         plt.xticks(rotation=90)
         plt.tight_layout()
-        
+
         if type(self.trainer.logger) is TensorBoardLogger:
             self.logger.experiment.add_figure(
                 "relative_class_weights",
