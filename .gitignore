@@ -5,6 +5,8 @@ visualizations
 *_weights.json
 log.txt
 .neptune/
+.lr_find*.ckpt
+.scale_batch_size*.ckpt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
