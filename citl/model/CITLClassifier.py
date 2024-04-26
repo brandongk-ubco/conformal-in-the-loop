@@ -10,6 +10,7 @@ from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 
 from ..ConformalClassifier import ConformalClassifier
+import pandas as pd
 
 
 class CITLClassifier(L.LightningModule):
@@ -32,6 +33,8 @@ class CITLClassifier(L.LightningModule):
         self.model = model
 
         self.conformal_classifier = ConformalClassifier(mapie_method=mapie_method)
+
+        self.num_classes = num_classes
 
         self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
@@ -72,6 +75,9 @@ class CITLClassifier(L.LightningModule):
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
+        self.class_weights = dict(
+            zip(range(self.num_classes), [0.0] * self.num_classes)
+        )
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
@@ -118,8 +124,16 @@ class CITLClassifier(L.LightningModule):
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
                 device=self.device
             )
+            np_y = y.detach().cpu().numpy()
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss = loss * prediction_set_size
+            unique, counts = np.unique(np_y, return_counts=True)
+            unique = [f"count_{self.trainer.datamodule.classes[u]}" for u in unique]
+            counts = counts.astype(float)
+            class_counts = dict(zip(unique, counts))
+            self.log_dict(class_counts, on_step=False, on_epoch=True, logger=True)
+            for clazz, weight in zip(np_y, uncertainty["prediction_set_size"]):
+                self.class_weights[clazz] += weight
             loss = loss.mean()
         else:
             self.has_backpropped = True
@@ -161,6 +175,45 @@ class CITLClassifier(L.LightningModule):
             )
         plt.close()
 
+        plt.figure()
+
+        self.class_weights = dict(
+            [
+                (self.trainer.datamodule.classes[k], v)
+                for k, v in self.class_weights.items()
+            ]
+        )
+
+        self.class_weights = pd.DataFrame([self.class_weights]).T
+        self.class_weights = self.class_weights.reset_index()
+
+        self.class_weights = self.class_weights.rename(columns={"index": "class", 0: 'count'})
+
+        self.class_weights["count"] = self.class_weights["count"] / self.class_weights["count"].sum()
+
+        sns_plot = sns.barplot(data=self.class_weights, x="class", y="count")
+
+        sns_plot.set_title(
+            f"Relative Weighting of Each Class (epoch: {self.current_epoch + 1})"
+        )
+        sns_plot.set_xlabel(f"Class")
+        sns_plot.set_ylabel("Relative Weighting")
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+        
+        if type(self.trainer.logger) is TensorBoardLogger:
+            self.logger.experiment.add_figure(
+                "relative_class_weights",
+                sns_plot.get_figure(),
+                self.global_step,
+            )
+
+        elif type(self.trainer.logger) is NeptuneLogger:
+            self.logger.experiment["training/relative_class_weights"].append(
+                sns_plot.get_figure()
+            )
+        plt.close()
+
         if self.pruning:
             if self.current_epoch % self.reclamation_interval == 0:
                 self.trainer.datamodule.reset_train_data()
@@ -176,8 +229,9 @@ class CITLClassifier(L.LightningModule):
         super().on_validation_epoch_start()
         self.accuracy.reset()
         self.conformal_classifier.reset()
-        self.val_batch_idx_fit_uncertainty = len(self.trainer.datamodule.val_dataloader()) // 5
-
+        self.val_batch_idx_fit_uncertainty = (
+            len(self.trainer.datamodule.val_dataloader()) // 5
+        )
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -202,7 +256,6 @@ class CITLClassifier(L.LightningModule):
         self.log("val_accuracy", self.accuracy, prog_bar=True)
 
         self.log("val_loss", test_loss)
-
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
