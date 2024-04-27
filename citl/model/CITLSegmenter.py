@@ -20,6 +20,7 @@ class CITLSegmenter(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
+        control_on_realized=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
         lr=1e-3,
@@ -45,7 +46,7 @@ class CITLSegmenter(L.LightningModule):
         self.lr_method = lr_method
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
-        self.control_on_realized = selectively_backpropagate
+        self.control_on_realized = control_on_realized
 
     def forward(self, x):
         if x.dim() == 2:

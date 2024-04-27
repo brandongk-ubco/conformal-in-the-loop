@@ -30,6 +30,7 @@ def train(
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
+    control_on_realized: bool = False,
     mapie_alpha: float = 0.10,
     lr_method: str = "plateau",
     lr: float = 5e-4,
@@ -60,8 +61,6 @@ def train(
     if greyscale:
         net = nn.Sequential(nn.Conv2d(1, 3, 1), net)
 
-    control_on_realized = selectively_backpropagate
-
     if datamodule.task == "classification":
         model = CITLClassifier
     elif datamodule.task == "segmentation":
@@ -84,6 +83,7 @@ def train(
     save_dir = os.path.join(
         "lightning_logs",
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
+        "control_on_realized" if control_on_realized else "control_on_loss",
         lr_method,
         mapie_method,
     )

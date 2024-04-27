@@ -19,6 +19,7 @@ class CITLClassifier(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
+        control_on_realized=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
         lr=1e-3,
@@ -36,6 +37,7 @@ class CITLClassifier(L.LightningModule):
         self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
         self.selectively_backpropagate = selectively_backpropagate
+        self.control_on_realized = control_on_realized
         self.mapie_alpha = mapie_alpha
         self.val_mapie_alpha = val_mapie_alpha
         self.lr = lr
