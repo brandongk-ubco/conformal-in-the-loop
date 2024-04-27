@@ -12,6 +12,7 @@ from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
 from ..ConformalClassifier import ConformalClassifier
+from ..utils.visualize_segmentation import visualize_segmentation
 
 
 class CITLSegmenter(L.LightningModule):
@@ -84,13 +85,6 @@ class CITLSegmenter(L.LightningModule):
 
         y_hat = self(x)
 
-        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
-            img, target = x[1, :, :, :], y[1]
-            img = img - img.min()
-            img = img / img.max()
-            # label = self.trainer.datamodule.classes[target]
-            self.logger.experiment.add_image("example_image", img, self.global_step)
-
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -101,6 +95,20 @@ class CITLSegmenter(L.LightningModule):
         self.log_dict(
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
+
+        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
+            img, target = x[1, :, :, :], y[1]
+            if img.ndim > 2:
+                img = img.moveaxis(0, -1)
+            fig = visualize_segmentation(
+                img.detach().cpu(),
+                mask=target.detach().cpu(),
+                prediction=y_hat[1].detach().cpu(),
+                prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[
+                    1
+                ],
+            )
+            self.logger.experiment.add_figure("example_image", fig, self.global_step)
 
         if self.selectively_backpropagate:
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
