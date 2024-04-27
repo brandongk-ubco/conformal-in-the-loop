@@ -25,7 +25,7 @@ class CITLSegmenter(L.LightningModule):
         val_mapie_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score"
+        mapie_method="score",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -35,8 +35,12 @@ class CITLSegmenter(L.LightningModule):
 
         self.num_classes = num_classes
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, average="micro", ignore_index=0)
-        self.jaccard = JaccardIndex(task="multiclass", num_classes=num_classes, average="micro", ignore_index=0)
+        self.accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+        )
+        self.jaccard = JaccardIndex(
+            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+        )
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
@@ -94,7 +98,9 @@ class CITLSegmenter(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True)
+        self.log_dict(
+            metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
+        )
 
         if self.selectively_backpropagate:
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
@@ -128,17 +134,18 @@ class CITLSegmenter(L.LightningModule):
 
         weights = dict(
             [
-                (self.trainer.datamodule.classes[k], float(v / self.class_counts[k].clamp_min(1e-5)))
+                (
+                    self.trainer.datamodule.classes[k],
+                    float(v / self.class_counts[k].clamp_min(1e-5)),
+                )
                 for k, v in self.class_weights.items()
             ]
         )
 
         weights_df = pd.DataFrame([weights]).T
-        weights_df= weights_df.reset_index()
+        weights_df = weights_df.reset_index()
 
-        weights_df = weights_df.rename(
-            columns={"index": "class", 0: "mean_weight"}
-        )
+        weights_df = weights_df.rename(columns={"index": "class", 0: "mean_weight"})
 
         sns_plot = sns.barplot(data=weights_df, x="class", y="mean_weight")
 

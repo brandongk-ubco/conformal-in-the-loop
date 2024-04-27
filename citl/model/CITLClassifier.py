@@ -24,7 +24,7 @@ class CITLClassifier(L.LightningModule):
         val_mapie_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score"
+        mapie_method="score",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])

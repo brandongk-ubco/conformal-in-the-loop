@@ -139,7 +139,7 @@ def train(
         max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
-        log_every_n_steps=10
+        log_every_n_steps=10,
     )
 
     tuner = Tuner(trainer)
