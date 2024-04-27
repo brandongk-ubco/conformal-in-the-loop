@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
+from torchmetrics.classification.jaccard import JaccardIndex
 
 from ..ConformalClassifier import ConformalClassifier
 
@@ -33,7 +34,8 @@ class CITLSegmenter(L.LightningModule):
 
         self.num_classes = num_classes
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, average="micro")
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, ignore_index=0)
+        self.jaccard = JaccardIndex(task="multiclass", num_classes=num_classes, average="micro", ignore_index=0)
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
@@ -71,7 +73,6 @@ class CITLSegmenter(L.LightningModule):
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
         self.class_counts = dict(zip(range(self.num_classes), [0.0] * self.num_classes))
-        self.accuracy.reset()
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -114,6 +115,9 @@ class CITLSegmenter(L.LightningModule):
 
         self.accuracy(y_hat, y)
         self.log("accuracy", self.accuracy)
+
+        self.jaccard(y_hat, y)
+        self.log("jaccard", self.jaccard)
 
         self.log("loss", loss)
         return loss
@@ -160,7 +164,6 @@ class CITLSegmenter(L.LightningModule):
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
-        self.accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
             len(self.trainer.datamodule.val_dataloader()) // 5
@@ -190,6 +193,9 @@ class CITLSegmenter(L.LightningModule):
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
+        self.jaccard(y_hat, y)
+        self.log("val_jaccard", self.jaccard, on_step=False, on_epoch=True)
+
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
@@ -211,6 +217,9 @@ class CITLSegmenter(L.LightningModule):
 
         self.accuracy(y_hat, y)
         self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+
+        self.jaccard(y_hat, y)
+        self.log("test_jaccard", self.jaccard, on_step=False, on_epoch=True)
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
