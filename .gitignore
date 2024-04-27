@@ -1,6 +1,5 @@
 datasets
-lightning_logs
-simple_logs
+*_logs
 visualizations
 *_weights.json
 log.txt

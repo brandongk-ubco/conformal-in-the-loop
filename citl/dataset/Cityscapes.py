@@ -199,7 +199,7 @@ class CityscapesDataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=True,
             batch_size=self.batch_size,
-            persistent_workers=False,
+            persistent_workers=True,
             drop_last=True,
         )
 
@@ -209,7 +209,7 @@ class CityscapesDataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=self.batch_size,
-            persistent_workers=False,
+            persistent_workers=True,
         )
 
     def test_dataloader(self):
@@ -218,7 +218,7 @@ class CityscapesDataModule(L.LightningDataModule):
             num_workers=os.cpu_count(),
             shuffle=False,
             batch_size=self.batch_size,
-            persistent_workers=False,
+            persistent_workers=True,
         )
 
 

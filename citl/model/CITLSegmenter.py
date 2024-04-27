@@ -33,6 +33,8 @@ class CITLSegmenter(L.LightningModule):
 
         self.conformal_classifier = ConformalClassifier(mapie_method=mapie_method)
 
+        self.num_classes = num_classes
+
         self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
 
         self.selectively_backpropagate = selectively_backpropagate
@@ -43,7 +45,6 @@ class CITLSegmenter(L.LightningModule):
         self.lr_method = lr_method
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
-        self.examples_without_uncertainty = {}
         self.uncertainty_pruning_threshold = uncertainty_pruning_threshold
         self.reclamation_interval = reclamation_interval
         self.pruning = pruning
@@ -71,33 +72,21 @@ class CITLSegmenter(L.LightningModule):
     def on_train_epoch_start(self) -> None:
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
-        self.has_backpropped = False
-        self.conformal_classifier.reset()
+        self.class_weights = dict(
+            zip(range(self.num_classes), [0.0] * self.num_classes)
+        )
 
     def training_step(self, batch, batch_idx):
-        x, y, indeces = batch
+        x, y, _ = batch
 
         y_hat = self(x)
 
-        loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
-        self.log("loss", loss)
-        return loss
-
-        if self.current_epoch == 0:
+        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
             img = img - img.min()
             img = img / img.max()
-            label = self.trainer.datamodule.classes[target]
-            if type(self.trainer.logger) is TensorBoardLogger:
-                self.logger.experiment.add_image(f"{label}", img, self.global_step)
-            elif type(self.trainer.logger) is NeptuneLogger:
-                fig = plt.figure()
-                if img.shape[0] == 1:
-                    plt.imshow(img.detach().cpu().moveaxis(0, -1), cmap="gray")
-                else:
-                    plt.imshow(img.detach().cpu().moveaxis(0, -1))
-                self.logger.experiment[f"training/examples/{label}"].append(fig)
-                plt.close()
+            # label = self.trainer.datamodule.classes[target]
+            self.logger.experiment.add_image("example_image", img, self.global_step)
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
@@ -106,87 +95,37 @@ class CITLSegmenter(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        if metrics["uncertain"] > 0.0:
-            self.no_uncertainty = False
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-
-        uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
-        realized = torch.tensor(uncertainty["realized"]).to(device=self.device)
-
-        for i, idx in enumerate(indeces.detach().cpu().numpy()):
-            if uncertain[i]:
-                self.examples_without_uncertainty[idx] = 0
-            else:
-                if idx in self.examples_without_uncertainty:
-                    self.examples_without_uncertainty[idx] += 1
-                else:
-                    self.examples_without_uncertainty[idx] = 1
-
+        
         if self.selectively_backpropagate:
-            to_backprop = torch.logical_or(uncertain, realized)
-            if to_backprop.sum() > 0:
-                self.has_backpropped = True
-
-            raise NotImplementedError("This code is not implemented yet")
-            loss = F.cross_entropy(y_hat, y, reduction="none")[to_backprop].mean()
+            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
+                device=self.device
+            )
+            np_y = y.detach().cpu().numpy()
+            loss = F.cross_entropy(y_hat, y.long(), reduction="none")
+            import pdb; pdb.set_trace()
+            loss = loss * prediction_set_size
+            unique, counts = np.unique(np_y, return_counts=True)
+            unique = [f"count_{self.trainer.datamodule.classes[u]}" for u in unique]
+            counts = counts.astype(float)
+            class_counts = dict(zip(unique, counts))
+            self.log_dict(class_counts, on_step=False, on_epoch=True, logger=True)
+            for clazz, weight in zip(np_y, uncertainty["prediction_set_size"]):
+                self.class_weights[clazz] += weight
+            loss = loss.mean()
         else:
-            self.has_backpropped = True
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.log("loss", loss)
         return loss
 
-    # def on_train_epoch_end(self) -> None:
-    #     if self.selectively_backpropagate and self.no_uncertainty:
-    #         self.trainer.should_stop = True
-
-    #     num_bins = max(21, self.current_epoch + 1)
-    #     bins = np.arange(0, num_bins)
-    #     plt.figure()
-    #     sns_plot = sns.histplot(
-    #         data=self.examples_without_uncertainty,
-    #         stat="percent",
-    #         bins=bins,
-    #     )
-
-    #     sns_plot.set_title(
-    #         f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
-    #     )
-    #     sns_plot.set_xlabel(
-    #         f"Number of epochs without uncertainty (mean: {mean([v for k,v in self.examples_without_uncertainty.items()]):.2f})"
-    #     )
-    #     sns_plot.set_xticks(bins[:-1] + 0.5)
-    #     sns_plot.set_xticklabels(bins[:-1], rotation=90)
-    #     sns_plot.set_ylabel("Percentage of examples")
-    #     sns_plot.set_ylim(0, 100)
-
-    #     if type(self.trainer.logger) is TensorBoardLogger:
-    #         self.logger.experiment.add_figure(
-    #             "examples_without_uncertainty",
-    #             sns_plot.get_figure(),
-    #             self.global_step,
-    #         )
-    #     elif type(self.trainer.logger) is NeptuneLogger:
-    #         self.logger.experiment["training/examples_without_uncertainty"].append(
-    #             sns_plot.get_figure()
-    #         )
-    #     plt.close()
-
-    #     if self.pruning:
-    #         if self.current_epoch % self.reclamation_interval == 0:
-    #             self.trainer.datamodule.reset_train_data()
-    #         else:
-    #             examples_to_prune = [
-    #                 k
-    #                 for k, v in self.examples_without_uncertainty.items()
-    #                 if v >= self.uncertainty_pruning_threshold
-    #             ]
-    #             self.trainer.datamodule.remove_train_data(examples_to_prune)
-
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
         self.accuracy.reset()
         self.conformal_classifier.reset()
+        self.val_batch_idx_fit_uncertainty = (
+            len(self.trainer.datamodule.val_dataloader()) // 5
+        )
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -196,29 +135,24 @@ class CITLSegmenter(L.LightningModule):
 
         self.conformal_classifier.append(y_hat, y, percent=0.01)
 
+        self.conformal_classifier.append(y_hat, y)
+
+        if batch_idx == self.val_batch_idx_fit_uncertainty:
+            self.conformal_classifier.fit()
+
+        if batch_idx > self.val_batch_idx_fit_uncertainty:
+            _, uncertainty = self.conformal_classifier.measure_uncertainty(
+                alphas=[self.val_mapie_alpha]
+            )
+
+            metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
+            self.log_dict(metrics, prog_bar=True)
+
+
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
-
-    def on_validation_epoch_end(self) -> None:
-        super().on_validation_epoch_end()
-
-        calib_percent = 0.2
-        uncertainty = self.conformal_classifier.fit(percentage=calib_percent)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.val_mapie_alpha], percentage=1 - calib_percent
-        )
-
-        metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(
-            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
-        )
-
-        if self.lr_method == "uncertainty":
-            self.optimizers().optimizer.param_groups[0]["lr"] = (
-                self.lr * 0.9 * metrics["val_uncertain"] + self.lr * 0.1
-            )
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch

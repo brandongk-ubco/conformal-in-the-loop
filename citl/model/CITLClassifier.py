@@ -98,7 +98,7 @@ class CITLClassifier(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True)
 
         uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
 
@@ -128,7 +128,7 @@ class CITLClassifier(L.LightningModule):
             loss = loss.mean()
         else:
             self.has_backpropped = True
-            loss = F.cross_entropy(y_hat, y)
+            loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
         self.log("loss", loss)
         return loss
