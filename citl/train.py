@@ -143,7 +143,7 @@ def train(
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
-        reload_dataloaders_every_n_epochs=1 if pruning else 0,
+        reload_dataloaders_every_n_epochs=1 if pruning else 0
     )
 
     tuner = Tuner(trainer)

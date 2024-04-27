@@ -97,7 +97,7 @@ class CITLSegmenter(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True)
 
         if self.selectively_backpropagate:
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
@@ -123,21 +123,21 @@ class CITLSegmenter(L.LightningModule):
     def on_train_epoch_end(self) -> None:
         plt.figure()
 
-        self.class_weights = dict(
+        weights = dict(
             [
-                (self.trainer.datamodule.classes[k], v / self.class_counts[k])
+                (self.trainer.datamodule.classes[k], float(v / self.class_counts[k].clamp_min(1e-5)))
                 for k, v in self.class_weights.items()
             ]
         )
 
-        self.class_weights = pd.DataFrame([self.class_weights]).T
-        self.class_weights = self.class_weights.reset_index()
+        weights_df = pd.DataFrame([weights]).T
+        weights_df= weights_df.reset_index()
 
-        self.class_weights = self.class_weights.rename(
+        weights_df = weights_df.rename(
             columns={"index": "class", 0: "mean_weight"}
         )
 
-        sns_plot = sns.barplot(data=self.class_weights, x="class", y="mean_weight")
+        sns_plot = sns.barplot(data=weights_df, x="class", y="mean_weight")
 
         sns_plot.set_title(
             f"Mean Weighting of Each Class (epoch: {self.current_epoch + 1})"
