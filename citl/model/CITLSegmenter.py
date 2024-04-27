@@ -19,14 +19,11 @@ class CITLSegmenter(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
-        pruning=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score",
-        uncertainty_pruning_threshold=2,
-        reclamation_interval=10,
+        mapie_method="score"
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -36,7 +33,7 @@ class CITLSegmenter(L.LightningModule):
 
         self.num_classes = num_classes
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, average="micro")
 
         self.selectively_backpropagate = selectively_backpropagate
         self.mapie_alpha = mapie_alpha
@@ -46,10 +43,7 @@ class CITLSegmenter(L.LightningModule):
         self.lr_method = lr_method
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
-        self.uncertainty_pruning_threshold = uncertainty_pruning_threshold
-        self.reclamation_interval = reclamation_interval
-        self.pruning = pruning
-        self.control_on_realized = selectively_backpropagate or pruning
+        self.control_on_realized = selectively_backpropagate
 
     def forward(self, x):
         if x.dim() == 2:
@@ -77,6 +71,7 @@ class CITLSegmenter(L.LightningModule):
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
         self.class_counts = dict(zip(range(self.num_classes), [0.0] * self.num_classes))
+        self.accuracy.reset()
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -116,6 +111,9 @@ class CITLSegmenter(L.LightningModule):
                 self.class_weights[clazz] += p_flt[class_idxs].sum()
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+
+        self.accuracy(y_hat, y)
+        self.log("accuracy", self.accuracy)
 
         self.log("loss", loss)
         return loss

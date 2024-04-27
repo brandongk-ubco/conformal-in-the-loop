@@ -30,7 +30,6 @@ def train(
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
-    pruning: bool = False,
     mapie_alpha: float = 0.10,
     lr_method: str = "plateau",
     lr: float = 5e-4,
@@ -39,8 +38,8 @@ def train(
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
 
-    if not selectively_backpropagate and not pruning and mapie_alpha != 0.10:
-        logger.info("Can't use MAPIE with backprop_all and no pruning.")
+    if not selectively_backpropagate and mapie_alpha != 0.10:
+        logger.info("Can't use MAPIE with backprop_all.")
         sys.exit(0)
 
     assert os.path.exists(augmentation_policy_path)
@@ -61,7 +60,7 @@ def train(
     if greyscale:
         net = nn.Sequential(nn.Conv2d(1, 3, 1), net)
 
-    control_on_realized = selectively_backpropagate or pruning
+    control_on_realized = selectively_backpropagate
 
     if datamodule.task == "classification":
         model = CITLClassifier
@@ -74,7 +73,6 @@ def train(
         net,
         num_classes=datamodule.num_classes,
         selectively_backpropagate=selectively_backpropagate,
-        pruning=pruning,
         mapie_alpha=mapie_alpha,
         lr_method=lr_method,
         lr=lr,
@@ -86,7 +84,6 @@ def train(
     save_dir = os.path.join(
         "lightning_logs",
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
-        "pruning" if pruning else "no_pruning",
         lr_method,
         mapie_method,
     )
@@ -142,8 +139,7 @@ def train(
         max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
-        log_every_n_steps=10,
-        reload_dataloaders_every_n_epochs=1 if pruning else 0
+        log_every_n_steps=10
     )
 
     tuner = Tuner(trainer)

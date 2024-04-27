@@ -19,14 +19,11 @@ class CITLClassifier(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
-        pruning=False,
         mapie_alpha=0.10,
         val_mapie_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score",
-        uncertainty_pruning_threshold=2,
-        reclamation_interval=10,
+        mapie_method="score"
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -47,10 +44,6 @@ class CITLClassifier(L.LightningModule):
         self.weight_decay = 0.0
         self.mapie_method = mapie_method
         self.examples_without_uncertainty = {}
-        self.uncertainty_pruning_threshold = uncertainty_pruning_threshold
-        self.reclamation_interval = reclamation_interval
-        self.pruning = pruning
-        self.control_on_realized = selectively_backpropagate or pruning
 
     def forward(self, x):
         if x.dim() == 2:
@@ -210,17 +203,6 @@ class CITLClassifier(L.LightningModule):
                 sns_plot.get_figure()
             )
         plt.close()
-
-        if self.pruning:
-            if self.current_epoch % self.reclamation_interval == 0:
-                self.trainer.datamodule.reset_train_data()
-            else:
-                examples_to_prune = [
-                    k
-                    for k, v in self.examples_without_uncertainty.items()
-                    if v >= self.uncertainty_pruning_threshold
-                ]
-                self.trainer.datamodule.remove_train_data(examples_to_prune)
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
