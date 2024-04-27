@@ -9,6 +9,7 @@ IMAGE_SIZE=224
 
 python -m citl train Cityscapes efficientnet-b0 \
     "--augmentation-policy-path=./policies/noop.yaml" \
+    "--selectively-backpropagate" \
     "--mapie-alpha=0.10" \
     "--lr-method=plateau" \
     "--mapie-method=score"

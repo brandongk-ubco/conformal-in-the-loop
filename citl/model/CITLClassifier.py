@@ -1,6 +1,7 @@
 from statistics import mean
 
 import numpy as np
+import pandas as pd
 import pytorch_lightning as L
 import seaborn as sns
 import torch
@@ -10,7 +11,6 @@ from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 
 from ..ConformalClassifier import ConformalClassifier
-import pandas as pd
 
 
 class CITLClassifier(L.LightningModule):
@@ -98,7 +98,9 @@ class CITLClassifier(L.LightningModule):
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
-        self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True)
+        self.log_dict(
+            metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
+        )
 
         uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
 
@@ -178,9 +180,13 @@ class CITLClassifier(L.LightningModule):
         self.class_weights = pd.DataFrame([self.class_weights]).T
         self.class_weights = self.class_weights.reset_index()
 
-        self.class_weights = self.class_weights.rename(columns={"index": "class", 0: 'count'})
+        self.class_weights = self.class_weights.rename(
+            columns={"index": "class", 0: "count"}
+        )
 
-        self.class_weights["count"] = self.class_weights["count"] / self.class_weights["count"].sum()
+        self.class_weights["count"] = (
+            self.class_weights["count"] / self.class_weights["count"].sum()
+        )
 
         sns_plot = sns.barplot(data=self.class_weights, x="class", y="count")
 

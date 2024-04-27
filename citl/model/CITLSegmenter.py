@@ -1,6 +1,7 @@
 from statistics import mean
 
 import numpy as np
+import pandas as pd
 import pytorch_lightning as L
 import seaborn as sns
 import torch
@@ -75,6 +76,7 @@ class CITLSegmenter(L.LightningModule):
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
+        self.class_counts = dict(zip(range(self.num_classes), [0.0] * self.num_classes))
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -96,28 +98,67 @@ class CITLSegmenter(L.LightningModule):
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
         self.log_dict(metrics, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-        
+
         if self.selectively_backpropagate:
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
                 device=self.device
             )
-            np_y = y.detach().cpu().numpy()
+            prediction_set_size = prediction_set_size.reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
-            import pdb; pdb.set_trace()
             loss = loss * prediction_set_size
-            unique, counts = np.unique(np_y, return_counts=True)
-            unique = [f"count_{self.trainer.datamodule.classes[u]}" for u in unique]
-            counts = counts.astype(float)
-            class_counts = dict(zip(unique, counts))
-            self.log_dict(class_counts, on_step=False, on_epoch=True, logger=True)
-            for clazz, weight in zip(np_y, uncertainty["prediction_set_size"]):
-                self.class_weights[clazz] += weight
             loss = loss.mean()
+
+            y_flt = y.flatten()
+            p_flt = prediction_set_size.flatten()
+            for clazz in range(self.num_classes):
+                class_idxs = y_flt == clazz
+                self.class_counts[clazz] += class_idxs.sum()
+                self.class_weights[clazz] += p_flt[class_idxs].sum()
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.log("loss", loss)
         return loss
+
+    def on_train_epoch_end(self) -> None:
+        plt.figure()
+
+        self.class_weights = dict(
+            [
+                (self.trainer.datamodule.classes[k], v / self.class_counts[k])
+                for k, v in self.class_weights.items()
+            ]
+        )
+
+        self.class_weights = pd.DataFrame([self.class_weights]).T
+        self.class_weights = self.class_weights.reset_index()
+
+        self.class_weights = self.class_weights.rename(
+            columns={"index": "class", 0: "mean_weight"}
+        )
+
+        sns_plot = sns.barplot(data=self.class_weights, x="class", y="mean_weight")
+
+        sns_plot.set_title(
+            f"Mean Weighting of Each Class (epoch: {self.current_epoch + 1})"
+        )
+        sns_plot.set_xlabel(f"Class")
+        sns_plot.set_ylabel("Mean Weighting")
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
+        if type(self.trainer.logger) is TensorBoardLogger:
+            self.logger.experiment.add_figure(
+                "mean_class_weights",
+                sns_plot.get_figure(),
+                self.global_step,
+            )
+
+        elif type(self.trainer.logger) is NeptuneLogger:
+            self.logger.experiment["training/mean_class_weights"].append(
+                sns_plot.get_figure()
+            )
+        plt.close()
 
     def on_validation_epoch_start(self) -> None:
         super().on_validation_epoch_start()
@@ -147,7 +188,6 @@ class CITLSegmenter(L.LightningModule):
 
             metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
             self.log_dict(metrics, prog_bar=True)
-
 
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True)
