@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from loguru import logger
 from mapie.classification import MapieClassifier
-
+import random
 
 class ConformalClassifier:
 
@@ -49,11 +49,17 @@ class ConformalClassifier:
         self.classes_ = range(self.cp_examples.shape[1])
         num_examples = len(self.cp_examples)
 
+        examples = range(num_examples)
+        labels = self.val_labels
+        if num_examples > 1e6:
+            examples = random.sample(examples, int(1e6))
+            labels = self.val_labels[examples]
+
         self.mapie_classifier = MapieClassifier(
             estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
         ).fit(
-            np.array(range(num_examples)),
-            self.val_labels,
+            np.array(examples),
+            labels,
         )
 
         self.cp_examples = []

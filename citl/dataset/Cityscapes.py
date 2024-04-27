@@ -32,24 +32,13 @@ class Cityscapes(BaseDataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        img = img.numpy()
         raw_mask = np.array(raw_mask)
-
-        resize_transform = A.Compose(
-            [
-                A.Resize(256, 512),
-                A.CenterCrop(256, 512),
-                ToTensorV2(),
-            ]
-        )
-
-        augmented = resize_transform(image=img.transpose(1, 2, 0), mask=raw_mask)
-        img = augmented["image"]
-        raw_mask = augmented["mask"]
-
         mask = np.zeros_like(raw_mask)
         for k in mapping_20:
-            mask[raw_mask == k] = mapping_20[k]
+            target = mapping_20[k]
+            if target == 0:
+                continue
+            mask[raw_mask == k] = target
 
         if self.augment_indices[index]:
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask)

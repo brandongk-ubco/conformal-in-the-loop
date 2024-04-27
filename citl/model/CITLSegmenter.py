@@ -179,7 +179,7 @@ class CITLSegmenter(L.LightningModule):
         super().on_validation_epoch_start()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
-            len(self.trainer.datamodule.val_dataloader()) // 5
+            len(self.trainer.datamodule.val_dataloader()) // 10
         )
 
     def validation_step(self, batch, batch_idx):
@@ -188,14 +188,12 @@ class CITLSegmenter(L.LightningModule):
 
         val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
-        self.conformal_classifier.append(y_hat, y, percent=0.01)
-
-        self.conformal_classifier.append(y_hat, y)
-
-        if batch_idx == self.val_batch_idx_fit_uncertainty:
+        if batch_idx < self.val_batch_idx_fit_uncertainty:
+            self.conformal_classifier.append(y_hat, y)
+        elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit()
-
-        if batch_idx > self.val_batch_idx_fit_uncertainty:
+        elif batch_idx < self.val_batch_idx_fit_uncertainty * 2:
+            self.conformal_classifier.append(y_hat[1:2], y[1:2])
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
                 alphas=[self.val_mapie_alpha]
             )
