@@ -102,13 +102,10 @@ class CITLSegmenter(L.LightningModule):
                 img = img.moveaxis(0, -1)
             fig = visualize_segmentation(
                 img.detach().cpu(),
-                mask=target.detach().cpu(),
-                prediction=y_hat[1].detach().cpu(),
-                prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[
-                    1
-                ],
+                mask=target.detach().cpu()
             )
             self.logger.experiment.add_figure("example_image", fig, self.global_step)
+            plt.close()
 
         if self.selectively_backpropagate:
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
@@ -230,6 +227,20 @@ class CITLSegmenter(L.LightningModule):
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
+
+        img, target = x[1, :, :, :], y[1]
+        if img.ndim > 2:
+            img = img.moveaxis(0, -1)
+        fig = visualize_segmentation(
+            img.detach().cpu(),
+            mask=target.detach().cpu(),
+            prediction=y_hat[1].detach().cpu(),
+            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[
+                1
+            ],
+        )
+        self.logger.experiment.add_figure("test_example", fig, self.global_step)
+        plt.close()
 
         self.accuracy(y_hat, y)
         self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
