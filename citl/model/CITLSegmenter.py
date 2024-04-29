@@ -78,7 +78,7 @@ class CITLSegmenter(L.LightningModule):
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
-        self.class_counts = dict(zip(range(self.num_classes), [0.0] * self.num_classes))
+        self.class_counts = dict(zip(range(self.num_classes), [1e-5] * self.num_classes))
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -141,7 +141,7 @@ class CITLSegmenter(L.LightningModule):
             [
                 (
                     self.trainer.datamodule.classes[k],
-                    float(v / self.class_counts[k].clamp_min(1e-5)),
+                    float(v / self.class_counts[k]),
                 )
                 for k, v in self.class_weights.items()
             ]
@@ -179,7 +179,7 @@ class CITLSegmenter(L.LightningModule):
         super().on_validation_epoch_start()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
-            len(self.trainer.datamodule.val_dataloader()) // 10
+            len(self.trainer.datamodule.val_dataloader()) // 5
         )
 
     def validation_step(self, batch, batch_idx):
@@ -192,8 +192,8 @@ class CITLSegmenter(L.LightningModule):
             self.conformal_classifier.append(y_hat, y)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit()
-        elif batch_idx < self.val_batch_idx_fit_uncertainty * 2:
-            self.conformal_classifier.append(y_hat[1:2], y[1:2])
+        else:
+            self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
                 alphas=[self.val_mapie_alpha]
             )

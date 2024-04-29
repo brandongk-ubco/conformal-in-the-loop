@@ -4,10 +4,6 @@ transform:
   __class_fullname__: Compose
   p: 1
   transforms: 
-    - __class_fullname__: RandomCrop
-      p: 1.00
-      height: 256
-      width: 512
     - __class_fullname__: HorizontalFlip
       p: 0.50
     - __class_fullname__: ToTensorV2

@@ -34,7 +34,7 @@ class CITLClassifier(L.LightningModule):
 
         self.num_classes = num_classes
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes)
+        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, average="micro")
 
         self.selectively_backpropagate = selectively_backpropagate
         self.control_on_realized = control_on_realized
@@ -73,6 +73,7 @@ class CITLClassifier(L.LightningModule):
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
+        self.class_counts = dict(zip(range(self.num_classes), [1e-5] * self.num_classes))
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
@@ -120,8 +121,14 @@ class CITLClassifier(L.LightningModule):
             counts = counts.astype(float)
             class_counts = dict(zip(unique, counts))
             self.log_dict(class_counts, on_step=False, on_epoch=True, logger=True)
-            for clazz, weight in zip(np_y, uncertainty["prediction_set_size"]):
-                self.class_weights[clazz] += weight
+
+            y_flt = y.flatten()
+            p_flt = prediction_set_size.flatten()
+            for clazz in range(self.num_classes):
+                class_idxs = y_flt == clazz
+                self.class_counts[clazz] += class_idxs.sum()
+                self.class_weights[clazz] += p_flt[class_idxs].sum()
+
             loss = loss.mean()
         else:
             self.has_backpropped = True
@@ -165,43 +172,40 @@ class CITLClassifier(L.LightningModule):
 
         plt.figure()
 
-        self.class_weights = dict(
+        weights = dict(
             [
-                (self.trainer.datamodule.classes[k], v)
+                (
+                    self.trainer.datamodule.classes[k],
+                    float(v / self.class_counts[k]),
+                )
                 for k, v in self.class_weights.items()
             ]
         )
 
-        self.class_weights = pd.DataFrame([self.class_weights]).T
-        self.class_weights = self.class_weights.reset_index()
+        weights_df = pd.DataFrame([weights]).T
+        weights_df = weights_df.reset_index()
 
-        self.class_weights = self.class_weights.rename(
-            columns={"index": "class", 0: "count"}
-        )
+        weights_df = weights_df.rename(columns={"index": "class", 0: "mean_weight"})
 
-        self.class_weights["count"] = (
-            self.class_weights["count"] / self.class_weights["count"].sum()
-        )
-
-        sns_plot = sns.barplot(data=self.class_weights, x="class", y="count")
+        sns_plot = sns.barplot(data=weights_df, x="class", y="mean_weight")
 
         sns_plot.set_title(
-            f"Relative Weighting of Each Class (epoch: {self.current_epoch + 1})"
+            f"Mean Weighting of Each Class (epoch: {self.current_epoch + 1})"
         )
         sns_plot.set_xlabel(f"Class")
-        sns_plot.set_ylabel("Relative Weighting")
+        sns_plot.set_ylabel("Mean Weighting")
         plt.xticks(rotation=90)
         plt.tight_layout()
 
         if type(self.trainer.logger) is TensorBoardLogger:
             self.logger.experiment.add_figure(
-                "relative_class_weights",
+                "mean_class_weights",
                 sns_plot.get_figure(),
                 self.global_step,
             )
 
         elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["training/relative_class_weights"].append(
+            self.logger.experiment["training/mean_class_weights"].append(
                 sns_plot.get_figure()
             )
         plt.close()
@@ -220,12 +224,12 @@ class CITLClassifier(L.LightningModule):
 
         test_loss = F.cross_entropy(y_hat, y)
 
-        self.conformal_classifier.append(y_hat, y)
-
-        if batch_idx == self.val_batch_idx_fit_uncertainty:
+        if batch_idx < self.val_batch_idx_fit_uncertainty:
+            self.conformal_classifier.append(y_hat, y)
+        elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit()
-
-        if batch_idx > self.val_batch_idx_fit_uncertainty:
+        else:
+            self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
                 alphas=[self.val_mapie_alpha]
             )

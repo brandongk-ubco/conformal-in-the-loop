@@ -51,8 +51,8 @@ class ConformalClassifier:
 
         examples = range(num_examples)
         labels = self.val_labels
-        if num_examples > 1e6:
-            examples = random.sample(examples, int(1e6))
+        if num_examples > 1e8:
+            examples = random.sample(examples, int(1e8))
             labels = self.val_labels[examples]
 
         self.mapie_classifier = MapieClassifier(
