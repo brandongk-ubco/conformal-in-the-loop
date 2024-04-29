@@ -2,7 +2,7 @@
 
 set -eux
 
-rm -rf lightning_logs
+# rm -rf lightning_logs
 rm .*.ckpt || true
 
 IMAGE_SIZE=224
@@ -14,12 +14,12 @@ IMAGE_SIZE=224
 #     "--lr-method=plateau" \
 #     "--mapie-method=score"
 
-python -m citl train CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
-    "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
-    "--selectively-backpropagate" \
-    "--mapie-alpha=0.10" \
-    "--lr-method=plateau" \
-    "--mapie-method=score"
+# python -m citl train CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
+#     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
+#     "--selectively-backpropagate" \
+#     "--mapie-alpha=0.10" \
+#     "--lr-method=plateau" \
+#     "--mapie-method=score"
 
 python -m citl train CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \

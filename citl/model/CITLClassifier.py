@@ -113,21 +113,20 @@ class CITLClassifier(L.LightningModule):
             prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
                 device=self.device
             )
-            np_y = y.detach().cpu().numpy()
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss = loss * prediction_set_size
-            unique, counts = np.unique(np_y, return_counts=True)
-            unique = [f"count_{self.trainer.datamodule.classes[u]}" for u in unique]
-            counts = counts.astype(float)
-            class_counts = dict(zip(unique, counts))
-            self.log_dict(class_counts, on_step=False, on_epoch=True, logger=True)
 
             y_flt = y.flatten()
             p_flt = prediction_set_size.flatten()
             for clazz in range(self.num_classes):
                 class_idxs = y_flt == clazz
-                self.class_counts[clazz] += class_idxs.sum()
-                self.class_weights[clazz] += p_flt[class_idxs].sum()
+                label = self.trainer.datamodule.classes[clazz]
+                count = class_idxs.sum()
+                weights = p_flt[class_idxs].sum()
+                self.log(f"count_{label}", count, on_step=False, on_epoch=True, logger=True)
+                self.log(f"weight_{label}", weights, on_step=False, on_epoch=True, logger=True)
+                self.class_counts[clazz] += count
+                self.class_weights[clazz] += weights
 
             loss = loss.mean()
         else:
