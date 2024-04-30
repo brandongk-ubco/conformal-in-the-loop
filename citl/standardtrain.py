@@ -19,6 +19,7 @@ from citl import cli
 
 from .dataset import Dataset
 from .model.Classifier import Classifier
+from .model.Segmenter import Segmenter
 
 
 @cli.command()
@@ -55,7 +56,7 @@ def standardtrain(
     if datamodule.task == "classification":
         model = Classifier
     elif datamodule.task == "segmentation":
-        raise NotImplementedError("Segmentation not implemented")
+        model = Segmenter
     else:
         raise ValueError("Unknown task")
 

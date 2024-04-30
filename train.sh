@@ -21,8 +21,12 @@ IMAGE_SIZE=224
 #     "--lr-method=plateau" \
 #     "--mapie-method=score"
 
-python -m citl standardtrain CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
-    "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
+# python -m citl standardtrain CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
+#     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
+#     "--lr-method=plateau"
+
+python -m citl standardtrain Cityscapes efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
     "--lr-method=plateau"
 
 # python -m citl train Cityscapes efficientnet-b0 \
