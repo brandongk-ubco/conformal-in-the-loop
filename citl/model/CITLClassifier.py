@@ -34,7 +34,9 @@ class CITLClassifier(L.LightningModule):
 
         self.num_classes = num_classes
 
-        self.accuracy = Accuracy(task="multiclass", num_classes=num_classes, average="micro")
+        self.accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="micro"
+        )
 
         self.selectively_backpropagate = selectively_backpropagate
         self.control_on_realized = control_on_realized
@@ -73,7 +75,9 @@ class CITLClassifier(L.LightningModule):
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
-        self.class_counts = dict(zip(range(self.num_classes), [1e-5] * self.num_classes))
+        self.class_counts = dict(
+            zip(range(self.num_classes), [1e-5] * self.num_classes)
+        )
 
     def training_step(self, batch, batch_idx):
         x, y, indeces = batch
@@ -120,11 +124,8 @@ class CITLClassifier(L.LightningModule):
             p_flt = prediction_set_size.flatten()
             for clazz in range(self.num_classes):
                 class_idxs = y_flt == clazz
-                label = self.trainer.datamodule.classes[clazz]
                 count = class_idxs.sum()
                 weights = p_flt[class_idxs].sum()
-                self.log(f"count_{label}", count, on_step=False, on_epoch=True, logger=True)
-                self.log(f"weight_{label}", weights, on_step=False, on_epoch=True, logger=True)
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
 
@@ -171,14 +172,31 @@ class CITLClassifier(L.LightningModule):
 
         plt.figure()
 
-        weights = dict(
-            [
-                (
-                    self.trainer.datamodule.classes[k],
-                    float(v / self.class_counts[k]),
-                )
-                for k, v in self.class_weights.items()
-            ]
+        weights = {}
+
+        for k in range(self.num_classes):
+            label = self.trainer.datamodule.classes[k]
+            weight = float(self.class_weights[k] / self.class_counts[k])
+            weights[label] = weight
+            self.log(f"mean_weight_{label}", weight, on_step=False, on_epoch=True)
+            self.log(
+                f"count_{label}",
+                self.class_counts[k],
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
+            self.log(
+                f"weight_{label}",
+                self.class_weights[k],
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
+
+        weight_range = max(weights.values()) - min(weights.values())
+        self.log(
+            "weight_range", weight_range, on_step=False, on_epoch=True, logger=True
         )
 
         weights_df = pd.DataFrame([weights]).T

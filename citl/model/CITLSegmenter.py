@@ -78,7 +78,9 @@ class CITLSegmenter(L.LightningModule):
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
-        self.class_counts = dict(zip(range(self.num_classes), [1e-5] * self.num_classes))
+        self.class_counts = dict(
+            zip(range(self.num_classes), [1e-5] * self.num_classes)
+        )
 
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -100,10 +102,7 @@ class CITLSegmenter(L.LightningModule):
             img, target = x[1, :, :, :], y[1]
             if img.ndim > 2:
                 img = img.moveaxis(0, -1)
-            fig = visualize_segmentation(
-                img.detach().cpu(),
-                mask=target.detach().cpu()
-            )
+            fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
             self.logger.experiment.add_figure("example_image", fig, self.global_step)
             plt.close()
 
@@ -120,8 +119,11 @@ class CITLSegmenter(L.LightningModule):
             p_flt = prediction_set_size.flatten()
             for clazz in range(self.num_classes):
                 class_idxs = y_flt == clazz
-                self.class_counts[clazz] += class_idxs.sum()
-                self.class_weights[clazz] += p_flt[class_idxs].sum()
+                count = class_idxs.sum()
+                weights = p_flt[class_idxs].sum()
+                self.class_counts[clazz] += count
+                self.class_weights[clazz] += weights
+
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
@@ -137,15 +139,27 @@ class CITLSegmenter(L.LightningModule):
     def on_train_epoch_end(self) -> None:
         plt.figure()
 
-        weights = dict(
-            [
-                (
-                    self.trainer.datamodule.classes[k],
-                    float(v / self.class_counts[k]),
-                )
-                for k, v in self.class_weights.items()
-            ]
-        )
+        weights = {}
+
+        for k in range(self.num_classes):
+            label = self.trainer.datamodule.classes[k]
+            weight = float(self.class_weights[k] / self.class_counts[k])
+            weights[label] = weight
+            self.log(f"mean_weight_{label}", weight, on_step=False, on_epoch=True)
+            self.log(
+                f"count_{label}",
+                self.class_counts[k],
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
+            self.log(
+                f"weight_{label}",
+                self.class_weights[k],
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
 
         weights_df = pd.DataFrame([weights]).T
         weights_df = weights_df.reset_index()
@@ -233,9 +247,7 @@ class CITLSegmenter(L.LightningModule):
             img.detach().cpu(),
             mask=target.detach().cpu(),
             prediction=y_hat[1].detach().cpu(),
-            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[
-                1
-            ],
+            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[1],
         )
         self.logger.experiment.add_figure("test_example", fig, self.global_step)
         plt.close()

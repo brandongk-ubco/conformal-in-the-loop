@@ -1,8 +1,10 @@
+import random
+
 import numpy as np
 import torch
 from loguru import logger
 from mapie.classification import MapieClassifier
-import random
+
 
 class ConformalClassifier:
 
