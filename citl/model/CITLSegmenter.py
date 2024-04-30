@@ -292,4 +292,4 @@ class CITLSegmenter(L.LightningModule):
         return optimizer
 
 
-__all__ = ["ConformalTrainer"]
+__all__ = ["CITLSegmenter"]

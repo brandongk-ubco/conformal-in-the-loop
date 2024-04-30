@@ -4,5 +4,6 @@ cli = typer.Typer()
 
 from .train import train
 from .visualize import visualize
+from .standardtrain import standardtrain
 
-__all__ = ["cli", "train", "visualize"]
+__all__ = ["cli", "train", "standardtrain", "visualize"]

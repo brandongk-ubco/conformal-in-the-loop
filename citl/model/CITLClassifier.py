@@ -239,7 +239,7 @@ class CITLClassifier(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y)
+        val_loss = F.cross_entropy(y_hat, y)
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
@@ -257,7 +257,7 @@ class CITLClassifier(L.LightningModule):
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy, prog_bar=True)
 
-        self.log("val_loss", test_loss)
+        self.log("val_loss", val_loss)
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -312,4 +312,4 @@ class CITLClassifier(L.LightningModule):
         return optimizer
 
 
-__all__ = ["ConformalTrainer"]
+__all__ = ["CITLClassifier"]
