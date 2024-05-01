@@ -9,7 +9,7 @@ from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
-
+from torch.utils.data.dataset import Subset
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
@@ -135,6 +135,7 @@ class CityscapesDataModule(L.LightningDataModule):
         self,
         augmentation_policy_path,
         batch_size: int = 4,
+        train_mode: str = "coarse",
         data_dir: str = PATH_DATASETS,
     ):
         super().__init__()
@@ -144,6 +145,7 @@ class CityscapesDataModule(L.LightningDataModule):
         self.data_dir = os.path.join(data_dir, "Cityscapes")
         self.num_classes = len(self.classes)
         self.batch_size = batch_size
+        self.train_mode = train_mode
 
         self.transform = v2.Compose(
             [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
@@ -169,22 +171,39 @@ class CityscapesDataModule(L.LightningDataModule):
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            cityscapes_full = Cityscapes(
+            cityscapes_fine = Cityscapes(
                 self.data_dir,
                 split="train",
                 mode="fine",
                 target_type="semantic",
                 transform=self.transform,
             )
-            train_size = int(len(cityscapes_full) * 0.8)
-            test_size = int(len(cityscapes_full) - train_size)
-            self.cityscapes_train, self.cityscapes_val = random_split(
-                cityscapes_full, [train_size, test_size]
+
+            cityscapes_coarse = Cityscapes(
+                self.data_dir,
+                split="train",
+                mode="coarse",
+                target_type="semantic",
+                transform=self.transform,
             )
-            cityscapes_full.set_indices(
+            train_size = int(len(cityscapes_fine) * 0.8)
+            test_size = int(len(cityscapes_fine) - train_size)
+
+            self.cityscapes_train, self.cityscapes_val = random_split(
+                cityscapes_fine, [train_size, test_size]
+            )
+
+            if self.train_mode == "coarse":
+                self.cityscapes_train = Subset(cityscapes_coarse, self.cityscapes_train.indices)
+
+            cityscapes_coarse.set_indices(
                 self.cityscapes_train.indices, self.cityscapes_val.indices
             )
-            cityscapes_full.augments = self.augments
+            cityscapes_fine.set_indices(
+                self.cityscapes_train.indices, self.cityscapes_val.indices
+            )
+            cityscapes_coarse.augments = self.augments
+            cityscapes_fine.augments = self.augments
 
         if stage == "test" or stage is None:
             self.cityscapes_test = Cityscapes(

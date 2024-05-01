@@ -25,16 +25,16 @@ IMAGE_SIZE=224
 #     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain Cityscapes efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--lr-method=plateau"
-
-# python -m citl train Cityscapes efficientnet-b0 \
+# python -m citl standardtrain Cityscapes efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
-#     "--selectively-backpropagate" \
-#     "--mapie-alpha=0.10" \
-#     "--lr-method=plateau" \
-#     "--mapie-method=score"
+#     "--lr-method=plateau"
+
+python -m citl train Cityscapes efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--selectively-backpropagate" \
+    "--mapie-alpha=0.10" \
+    "--lr-method=plateau" \
+    "--mapie-method=score"
 
 # python -m citl train Cityscapes efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
