@@ -56,36 +56,36 @@ class ConformalClassifier:
         self.cp_examples.append(y_hat)
         self.val_labels.append(y)
 
-    def fit(self):
+    def fit(self, alphas=[0.1]):
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
         self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
         examples = torch.cat((self.val_labels.unsqueeze(1), self.cp_examples), axis=1)
         mapper = partial(reduce_score, function=lac)
 
-        self.scores = torch.vmap(mapper)(examples).squeeze()
+        scores = torch.vmap(mapper)(examples).squeeze()
+
+        num = scores.size()[0]
+        self.quantiles = {}
+        for alpha in alphas:
+            quantile = torch.quantile(scores, (num + 1) * (1 - alpha) / num)
+            self.quantiles[alpha] = quantile
 
         self.cp_examples = []
         self.val_labels = []
-        self.quantiles = {}
+
 
     def measure_uncertainty(self, alpha=0.1):
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
         self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
-        if alpha in self.quantiles:
-            quantile = self.quantiles[alpha]
-        else:
-            num = self.scores.size()[0]
-            quantile = torch.quantile(self.scores, (num + 1) * (1 - alpha) / num)
-            self.quantiles[alpha] = quantile
+        quantile = self.quantiles[alpha]
 
         mapper = partial(reduce_quantile, function=lac_set, quantile=quantile)
 
         conformal_sets = torch.vmap(mapper)(self.cp_examples).squeeze()
 
-        examples = torch.cat((self.val_labels.unsqueeze(1), conformal_sets), axis=1)
-        correct = torch.vmap(reduce_correct)(examples).squeeze()
+        correct = self.cp_examples.argmax(axis=1) == self.val_labels
 
         num_classes = conformal_sets.sum(axis=1)
 

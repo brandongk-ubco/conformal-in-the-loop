@@ -248,7 +248,7 @@ class CITLClassifier(L.LightningModule):
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
-            self.conformal_classifier.fit()
+            self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
