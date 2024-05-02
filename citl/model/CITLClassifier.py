@@ -94,15 +94,15 @@ class CITLClassifier(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.alpha]
+            alpha=self.alpha
         )
 
-        metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
+        metrics = dict([(k, v.float().mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
 
-        uncertain = torch.tensor(uncertainty["uncertain"]).to(device=self.device)
+        uncertain = uncertainty["uncertain"]
 
         for i, idx in enumerate(indeces.detach().cpu().numpy()):
             if uncertain[i]:
@@ -114,9 +114,7 @@ class CITLClassifier(L.LightningModule):
                     self.examples_without_uncertainty[idx] = 1
 
         if self.selectively_backpropagate:
-            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
-                device=self.device
-            )
+            prediction_set_size = uncertainty["prediction_set_size"]
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss = loss * prediction_set_size
 
@@ -131,7 +129,6 @@ class CITLClassifier(L.LightningModule):
 
             loss = loss.mean()
         else:
-            self.has_backpropped = True
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
         self.log("loss", loss)
@@ -252,10 +249,10 @@ class CITLClassifier(L.LightningModule):
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
-                alphas=[self.val_alpha]
+                alpha=self.val_alpha
             )
 
-            metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
+            metrics = dict([(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()])
             self.log_dict(metrics, prog_bar=True)
 
         self.accuracy(y_hat, y)
@@ -271,10 +268,10 @@ class CITLClassifier(L.LightningModule):
 
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.val_alpha]
+            alpha=self.val_alpha
         )
 
-        metrics = dict([(f"test_{k}", v.mean()) for k, v in uncertainty.items()])
+        metrics = dict([(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )

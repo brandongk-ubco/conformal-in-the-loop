@@ -1,5 +1,7 @@
 from enum import Enum
 
+from functools import partial
+
 from .CIFAR10 import CIFAR10DataModule
 from .Cityscapes import CityscapesDataModule
 from .MNIST import MNISTDataModule
@@ -8,7 +10,8 @@ from .MNIST import MNISTDataModule
 class Dataset(str, Enum):
     CIFAR10 = "CIFAR10"
     MNIST = "MNIST"
-    Cityscapes = "Cityscapes"
+    CityscapesCoarse = "CityscapesCoarse"
+    CityscapesFine = "CityscapesFine"
 
     @staticmethod
     def get(Dataset):
@@ -16,8 +19,10 @@ class Dataset(str, Enum):
             return CIFAR10DataModule
         elif Dataset == "MNIST":
             return MNISTDataModule
-        elif Dataset == "Cityscapes":
-            return CityscapesDataModule
+        elif Dataset == "CityscapesFine":
+            return partial(CityscapesDataModule, train_mode="fine")
+        elif Dataset == "CityscapesCoarse":
+            return partial(CityscapesDataModule, train_mode="coarse")
         else:
             raise NotImplementedError(f"Dataset {Dataset} not implemented.")
 

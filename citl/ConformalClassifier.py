@@ -1,6 +1,5 @@
 from functools import partial
 
-import numpy as np
 import torch
 
 
@@ -9,7 +8,7 @@ def lac(y_hat, y):
 
 
 def lac_set(y_hat, quantile):
-    return y_hat >= 1 - quantile
+    return y_hat >= quantile
 
 
 def reduce_score(example, function):
@@ -69,7 +68,7 @@ class ConformalClassifier:
         self.quantiles = {}
         for alpha in alphas:
             quantile = torch.quantile(scores, (num + 1) * (1 - alpha) / num)
-            self.quantiles[alpha] = quantile
+            self.quantiles[alpha] = 1 - quantile
 
         self.cp_examples = []
         self.val_labels = []
