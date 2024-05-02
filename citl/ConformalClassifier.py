@@ -38,18 +38,12 @@ class ConformalClassifier:
         self.cp_examples = []
         self.val_labels = []
 
-    def append(self, y_hat, y, percent=None):
+    def append(self, y_hat, y):
         if y_hat.ndim > 2:
             y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
 
         if y.ndim > 1:
             y = y.flatten()
-
-        if percent is not None:
-            probs = torch.empty(len(y)).uniform_()
-            idx = (probs < percent).nonzero().flatten()
-            y = y[idx]
-            y_hat = y_hat[idx, :]
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1).detach()
@@ -63,7 +57,6 @@ class ConformalClassifier:
         self.val_labels.append(y)
 
     def fit(self):
-
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
         self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
@@ -74,13 +67,19 @@ class ConformalClassifier:
 
         self.cp_examples = []
         self.val_labels = []
+        self.quantiles = {}
 
     def measure_uncertainty(self, alpha=0.1):
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
         self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
-        num = self.scores.size()[0]
-        quantile = torch.quantile(self.scores, (num + 1) * (1 - alpha) / num)
+        if alpha in self.quantiles:
+            quantile = self.quantiles[alpha]
+        else:
+            num = self.scores.size()[0]
+            quantile = torch.quantile(self.scores, (num + 1) * (1 - alpha) / num)
+            self.quantiles[alpha] = quantile
+
         mapper = partial(reduce_quantile, function=lac_set, quantile=quantile)
 
         conformal_sets = torch.vmap(mapper)(self.cp_examples).squeeze()

@@ -32,7 +32,7 @@ IMAGE_SIZE=224
 python -m citl train Cityscapes efficientnet-b0 \
     "--augmentation-policy-path=./policies/cityscapes.yaml" \
     "--selectively-backpropagate" \
-    "--alpha=0.01" \
+    "--alpha=0.10" \
     "--lr-method=plateau" \
     "--method=score"
 
