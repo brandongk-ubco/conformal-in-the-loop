@@ -238,7 +238,7 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=self.val_alpha
+            alpha=self.val_alpha
         )
 
         metrics = dict(
@@ -251,13 +251,14 @@ class CITLSegmenter(L.LightningModule):
         img, target = x[1, :, :, :], y[1]
         if img.ndim > 2:
             img = img.moveaxis(0, -1)
+
         fig = visualize_segmentation(
             img.detach().cpu(),
             mask=target.detach().cpu(),
             prediction=y_hat[1].detach().cpu(),
-            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[1],
+            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[1].detach().cpu(),
         )
-        self.logger.experiment.add_figure("test_example", fig, self.global_step)
+        self.logger.experiment.add_figure("test_example", fig, batch_idx)
         plt.close()
 
         self.accuracy(y_hat, y)

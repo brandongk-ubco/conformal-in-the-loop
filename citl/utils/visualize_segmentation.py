@@ -46,7 +46,7 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
         else:
             raise ValueError(f"Image has invalid shape: {image.shape}")
 
-        plt.imshow(mask, cmap="jet", interpolation="none", alpha=0.2, vmin=1, vmax=4)
+        plt.imshow(mask, cmap="jet", interpolation="none", alpha=0.2, vmin=1, vmax=num_classes)
         plt.grid(False)
         plt.axis("off")
         plt.title("Ground Truth")
