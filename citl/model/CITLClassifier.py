@@ -20,17 +20,17 @@ class CITLClassifier(L.LightningModule):
         num_classes,
         selectively_backpropagate=False,
         control_on_realized=False,
-        mapie_alpha=0.10,
-        val_mapie_alpha=0.10,
+        alpha=0.10,
+        val_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score",
+        method="score",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
 
-        self.conformal_classifier = ConformalClassifier(mapie_method=mapie_method)
+        self.conformal_classifier = ConformalClassifier(method=method)
 
         self.num_classes = num_classes
 
@@ -40,13 +40,13 @@ class CITLClassifier(L.LightningModule):
 
         self.selectively_backpropagate = selectively_backpropagate
         self.control_on_realized = control_on_realized
-        self.mapie_alpha = mapie_alpha
-        self.val_mapie_alpha = val_mapie_alpha
+        self.alpha = alpha
+        self.val_alpha = val_alpha
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
         self.weight_decay = 0.0
-        self.mapie_method = mapie_method
+        self.method = method
         self.examples_without_uncertainty = {}
 
     def forward(self, x):
@@ -94,7 +94,7 @@ class CITLClassifier(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.mapie_alpha]
+            alphas=[self.alpha]
         )
 
         metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
@@ -197,12 +197,8 @@ class CITLClassifier(L.LightningModule):
         weight_max = max(weights.values())
         weight_min = min(weights.values())
         weight_range = max(weights.values()) - min(weights.values())
-        self.log(
-            "weight_max", weight_max, on_step=False, on_epoch=True, logger=True
-        )
-        self.log(
-            "weight_min", weight_min, on_step=False, on_epoch=True, logger=True
-        )
+        self.log("weight_max", weight_max, on_step=False, on_epoch=True, logger=True)
+        self.log("weight_min", weight_min, on_step=False, on_epoch=True, logger=True)
         self.log(
             "weight_range", weight_range, on_step=False, on_epoch=True, logger=True
         )
@@ -256,7 +252,7 @@ class CITLClassifier(L.LightningModule):
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
-                alphas=[self.val_mapie_alpha]
+                alphas=[self.val_alpha]
             )
 
             metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
@@ -275,7 +271,7 @@ class CITLClassifier(L.LightningModule):
 
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.val_mapie_alpha]
+            alphas=[self.val_alpha]
         )
 
         metrics = dict([(f"test_{k}", v.mean()) for k, v in uncertainty.items()])

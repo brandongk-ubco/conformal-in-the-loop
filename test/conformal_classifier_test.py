@@ -1,14 +1,25 @@
 from citl.ConformalClassifier import ConformalClassifier
-import numpy as np
+from citl.ConformalClassifier import lac
 import torch
 
 class TestConformalClassifier:
+    def test_lac(self):
+        y_hat = torch.tensor([
+            [0.2, 0.2, 0.2, 0.2, 0.2],
+            [0.0, 1.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0],
+            [0.5, 0.0, 0.0, 0.0, 0.5],
+            ])
+        y = torch.tensor([3, 1, 1, 4])
+        expected = torch.tensor([ 0.8, 0.0, 1.0, 0.5])
+        for i in range(4):
+            assert lac(y_hat[i], y[i]) == expected[i]
+
+        
     def test_initialize(self):
         cc = ConformalClassifier()
-        assert cc.__sklearn_is_fitted__() == True
         assert len(cc.cp_examples) == 0
-        assert cc.mapie_classifier == None
-
+        assert len(cc.val_labels) == 0
 
     def test_fit(self):
         num_examples = 256
@@ -85,15 +96,4 @@ class TestConformalClassifier:
         cc.append(y_hat, y)
         cc.fit()
 
-    def test_fit_two_dimensions_with_sampling(self):
-        num_examples = 3
-        num_classes = 10
-        num_x = 4
-        num_y = 5
-        y_hat = torch.rand(num_examples, num_classes, num_x, num_y)
-        y = y_hat.argmax(axis=1)
 
-        cc = ConformalClassifier()
-        cc.append(y_hat, y, percent=0.5)
-        assert(len(cc.val_labels) < num_examples * num_x * num_y)
-        cc.fit()

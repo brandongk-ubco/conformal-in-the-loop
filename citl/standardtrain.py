@@ -30,7 +30,7 @@ def standardtrain(
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",
-    lr: float = 5e-4
+    lr: float = 5e-4,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")

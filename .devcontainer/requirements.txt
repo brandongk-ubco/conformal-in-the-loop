@@ -1,7 +1,6 @@
 torchvision==0.16.0
 albumentations
 timm
-mapie
 torch-tb-profiler
 typer
 isort

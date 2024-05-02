@@ -7,9 +7,10 @@ import pytorch_lightning as L
 import torch
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader, random_split
+from torch.utils.data.dataset import Subset
 from torchvision.datasets import Cityscapes as BaseDataset
 from torchvision.transforms import v2
-from torch.utils.data.dataset import Subset
+
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
@@ -194,7 +195,9 @@ class CityscapesDataModule(L.LightningDataModule):
             )
 
             if self.train_mode == "coarse":
-                self.cityscapes_train = Subset(cityscapes_coarse, self.cityscapes_train.indices)
+                self.cityscapes_train = Subset(
+                    cityscapes_coarse, self.cityscapes_train.indices
+                )
 
             cityscapes_coarse.set_indices(
                 self.cityscapes_train.indices, self.cityscapes_val.indices

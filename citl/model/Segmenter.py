@@ -16,13 +16,7 @@ from ..utils.visualize_segmentation import visualize_segmentation
 
 
 class Segmenter(L.LightningModule):
-    def __init__(
-        self,
-        model,
-        num_classes,
-        lr=1e-3,
-        lr_method="plateau"
-    ):
+    def __init__(self, model, num_classes, lr=1e-3, lr_method="plateau"):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
@@ -77,10 +71,14 @@ class Segmenter(L.LightningModule):
         val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            "val_accuracy", self.accuracy, on_step=False, on_epoch=True, prog_bar=True
+        )
 
         self.jaccard(y_hat, y)
-        self.log("val_jaccard", self.jaccard, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            "val_jaccard", self.jaccard, on_step=False, on_epoch=True, prog_bar=True
+        )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 

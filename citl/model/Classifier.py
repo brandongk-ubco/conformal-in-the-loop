@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 
+
 class Classifier(L.LightningModule):
     def __init__(
         self,

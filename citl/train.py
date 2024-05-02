@@ -31,16 +31,16 @@ def train(
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
     control_on_realized: bool = False,
-    mapie_alpha: float = 0.10,
+    alpha: float = 0.10,
     lr_method: str = "plateau",
     lr: float = 5e-4,
-    mapie_method="score",
+    method="score",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
 
-    if not selectively_backpropagate and mapie_alpha != 0.10:
-        logger.info("Can't use MAPIE with backprop_all.")
+    if not selectively_backpropagate and alpha != 0.10:
+        logger.info("Can't use Conformal Prediction with backprop_all.")
         sys.exit(0)
 
     assert os.path.exists(augmentation_policy_path)
@@ -72,10 +72,10 @@ def train(
         net,
         num_classes=datamodule.num_classes,
         selectively_backpropagate=selectively_backpropagate,
-        mapie_alpha=mapie_alpha,
+        alpha=alpha,
         lr_method=lr_method,
         lr=lr,
-        mapie_method=mapie_method,
+        method=method,
     )
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
@@ -85,12 +85,12 @@ def train(
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
         "control_on_realized" if control_on_realized else "control_on_loss",
         lr_method,
-        mapie_method,
+        method,
     )
 
     trainer_logger = TensorBoardLogger(
         save_dir=save_dir,
-        version=f"{model_name}-{policy}-{mapie_alpha}",
+        version=f"{model_name}-{policy}-{alpha}",
         name=dataset,
     )
     if os.environ.get("NEPTUNE_API_TOKEN"):

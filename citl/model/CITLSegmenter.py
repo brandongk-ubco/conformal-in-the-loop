@@ -22,17 +22,17 @@ class CITLSegmenter(L.LightningModule):
         num_classes,
         selectively_backpropagate=False,
         control_on_realized=False,
-        mapie_alpha=0.10,
-        val_mapie_alpha=0.10,
+        alpha=0.10,
+        val_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
-        mapie_method="score",
+        method="score",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
         self.model = model
 
-        self.conformal_classifier = ConformalClassifier(mapie_method=mapie_method)
+        self.conformal_classifier = ConformalClassifier(method=method)
 
         self.num_classes = num_classes
 
@@ -44,13 +44,13 @@ class CITLSegmenter(L.LightningModule):
         )
 
         self.selectively_backpropagate = selectively_backpropagate
-        self.mapie_alpha = mapie_alpha
-        self.val_mapie_alpha = val_mapie_alpha
+        self.alpha = alpha
+        self.val_alpha = val_alpha
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
         self.weight_decay = 0.0
-        self.mapie_method = mapie_method
+        self.method = method
         self.control_on_realized = control_on_realized
 
     def forward(self, x):
@@ -90,10 +90,10 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.mapie_alpha]
+            alpha=self.alpha
         )
 
-        metrics = dict([(k, v.mean()) for k, v in uncertainty.items()])
+        metrics = dict([(k, v.float().mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
@@ -107,10 +107,7 @@ class CITLSegmenter(L.LightningModule):
             plt.close()
 
         if self.selectively_backpropagate:
-            prediction_set_size = torch.tensor(uncertainty["prediction_set_size"]).to(
-                device=self.device
-            )
-            prediction_set_size = prediction_set_size.reshape(y.shape)
+            prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
             loss = loss * prediction_set_size
             loss = loss.mean()
@@ -209,10 +206,10 @@ class CITLSegmenter(L.LightningModule):
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
-                alphas=[self.val_mapie_alpha]
+                alpha=self.val_alpha
             )
 
-            metrics = dict([(f"val_{k}", v.mean()) for k, v in uncertainty.items()])
+            metrics = dict([(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()])
             self.log_dict(metrics, prog_bar=True)
 
         self.accuracy(y_hat, y)
@@ -232,10 +229,10 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alphas=[self.val_mapie_alpha]
+            alphas=self.val_alpha
         )
 
-        metrics = dict([(f"test_{k}", v.mean()) for k, v in uncertainty.items()])
+        metrics = dict([(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
