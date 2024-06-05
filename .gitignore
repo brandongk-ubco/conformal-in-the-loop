@@ -1,10 +1,12 @@
 datasets
-lightning_logs
-simple_logs
+*_logs
 visualizations
 *_weights.json
 log.txt
 .neptune/
+.lr_find*.ckpt
+.scale_batch_size*.ckpt
+test/test_*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,7 +1,6 @@
 torchvision==0.16.0
-albumentations==1.3.1
-timm==0.9.12
-mapie==0.7.0
+albumentations
+timm
 torch-tb-profiler
 typer
 isort
@@ -10,3 +9,4 @@ loguru
 seaborn
 jupyter
 neptune>=1.0
+segmentation_models_pytorch @ git+https://github.com/jlcsilva/segmentation_models.pytorch

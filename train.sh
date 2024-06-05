@@ -3,18 +3,42 @@
 set -eux
 
 rm -rf lightning_logs
+rm .*.ckpt || true
 
-python -m citl train CIFAR10 mobilenetv2_035 224 \
-    "--augmentation-policy-path=./policies/cifar10.224.yaml" \
-    "--selectively-backpropagate" \
-    "--mapie-alpha=0.10" \
-    "--lr-method=plateau" \
-    "--mapie-method=score"
+IMAGE_SIZE=224
 
-# python -m citl train MNIST mobilenetv2_035 32 \
-#     "--greyscale" \
-#     "--augmentation-policy-path=./policies/mnist.yaml" \
+# python -m citl train CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
+#     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
 #     "--selectively-backpropagate" \
-#     "--mapie-alpha=0.10" \
+#     "--alpha=0.10" \
 #     "--lr-method=plateau" \
-#     "--mapie-method=score"
+#     "--method=score"
+
+# python -m citl train CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
+#     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
+#     "--no-selectively-backpropagate" \
+#     "--alpha=0.10" \
+#     "--lr-method=plateau" \
+#     "--method=score"
+
+python -m citl train CityscapesFine efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
+
+python -m citl train CityscapesFine efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
+
+# python -m citl standardtrain CIFAR10 mnasnet_small --image-size=$IMAGE_SIZE \
+#     "--augmentation-policy-path=./policies/cifar10.${IMAGE_SIZE}.yaml" \
+#     "--lr-method=plateau"
+
+# python -m citl standardtrain Cityscapes efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--lr-method=plateau"

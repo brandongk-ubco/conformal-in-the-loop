@@ -1,80 +1,96 @@
-import numpy as np
+from functools import partial
+
 import torch
-from mapie.classification import MapieClassifier
+
+
+def lac(y_hat, y):
+    return 1 - y_hat[y.int()]
+
+
+def lac_set(y_hat, quantile):
+    return y_hat >= quantile
+
+
+def reduce_score(example, function):
+    y_hat = example[1:]
+    y = example[:1]
+    return function(y_hat, y)
+
+
+def reduce_quantile(y_hat, function, quantile):
+    return function(y_hat, quantile)
+
+
+def reduce_correct(example):
+    y_hat = example[1:]
+    y = example[:1]
+    return y_hat[y.int()].bool()
 
 
 class ConformalClassifier:
 
-    def __init__(self, mapie_method="aps"):
-        self.mapie_method = mapie_method
-        self.mapie_classifier = None
-        self.cp_examples = None
-        self.val_labels = None
-
-    def __sklearn_is_fitted__(self):
-        return True
+    def __init__(self, method="score"):
+        self.method = method
+        self.reset()
 
     def reset(self):
-        self.cp_examples = None
-        self.val_labels = None
+        self.cp_examples = []
+        self.val_labels = []
 
     def append(self, y_hat, y):
+        if y_hat.ndim > 2:
+            y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
+
+        if y.ndim > 1:
+            y = y.flatten()
+
         if torch.is_tensor(y_hat):
-            y_hat = y_hat.softmax(axis=1).detach().cpu().numpy()
+            y_hat = y_hat.softmax(axis=1).detach()
         if torch.is_tensor(y):
-            y = y.detach().cpu().numpy()
+            y = y.detach()
 
         assert y.ndim == 1
         assert y_hat.ndim == 2
 
-        if self.cp_examples is None:
-            self.cp_examples = y_hat
-        else:
-            self.cp_examples = np.row_stack([self.cp_examples, y_hat])
+        self.cp_examples.append(y_hat)
+        self.val_labels.append(y)
 
-        if self.val_labels is None:
-            self.val_labels = y
-        else:
-            self.val_labels = np.append(self.val_labels, y)
+    def fit(self, alphas=[0.1]):
+        self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
+        self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
-        assert self.cp_examples.shape[0] == len(self.val_labels)
+        examples = torch.cat((self.val_labels.unsqueeze(1), self.cp_examples), axis=1)
+        mapper = partial(reduce_score, function=lac)
 
-    def fit(self, percentage=1.0):
-        num_available = len(self.val_labels)
-        use_idx = int(num_available * percentage)
+        scores = torch.vmap(mapper)(examples).squeeze()
 
-        y = self.val_labels[:use_idx]
-        y_hat = self.cp_examples[:use_idx]
+        num = scores.size()[0]
+        self.quantiles = {}
+        for alpha in alphas:
+            quantile = torch.quantile(scores, (num + 1) * (1 - alpha) / num)
+            self.quantiles[alpha] = 1 - quantile
 
-        num_examples = len(y)
+        self.cp_examples = []
+        self.val_labels = []
 
-        assert y_hat.shape[0] == num_examples
-        self.classes_ = range(y_hat.shape[1])
 
-        self.mapie_classifier = MapieClassifier(
-            estimator=self, method=self.mapie_method, cv="prefit", n_jobs=-1
-        ).fit(
-            np.array(range(use_idx)),
-            y,
-        )
+    def measure_uncertainty(self, alpha=0.1):
+        self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
+        self.val_labels = torch.concatenate(self.val_labels, axis=0)
 
-    def measure_uncertainty(self, percentage=1.0, alphas=[0.1]):
-        num_available = len(self.val_labels)
-        use_idx = num_available - int(num_available * percentage)
+        quantile = self.quantiles[alpha]
 
-        y = self.val_labels[use_idx:]
+        mapper = partial(reduce_quantile, function=lac_set, quantile=quantile)
 
-        conformal_sets = self.mapie_classifier.predict(
-            range(use_idx, num_available), alpha=alphas
-        )[1]
+        conformal_sets = torch.vmap(mapper)(self.cp_examples).squeeze()
 
-        num_classes = conformal_sets.sum(axis=1).squeeze()
-        conformal_predictions = conformal_sets.argmax(axis=1).squeeze()
-        correct = conformal_predictions == y
+        correct = self.cp_examples.argmax(axis=1) == self.val_labels
+
+        num_classes = conformal_sets.sum(axis=1)
 
         atypical = num_classes == 0
-        realized = np.logical_and(correct, num_classes == 1)
-        confused = np.logical_and(~correct, num_classes == 1)
+        realized = torch.logical_and(correct, num_classes == 1)
+        confused = torch.logical_and(~correct, num_classes == 1)
         uncertain = num_classes > 1
 
         results = {
@@ -84,13 +100,11 @@ class ConformalClassifier:
             "confused": confused,
             "uncertain": uncertain,
         }
+
+        self.val_labels = []
+        self.cp_examples = []
+
         return conformal_sets, results
-
-    def predict(self, x):
-        return self.predict_proba(x).argmax(axis=1)
-
-    def predict_proba(self, x):
-        return self.cp_examples[x]
 
 
 __all__ = ["ConformalClassifier"]

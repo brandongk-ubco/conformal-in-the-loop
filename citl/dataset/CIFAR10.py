@@ -9,7 +9,6 @@ from torchvision.datasets import CIFAR10 as BaseDataset
 from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
-BATCH_SIZE = 128
 
 
 class CIFAR10(BaseDataset):
@@ -57,13 +56,21 @@ class CIFAR10DataModule(L.LightningDataModule):
 
     augments = None
 
-    def __init__(self, augmentation_policy_path, data_dir: str = PATH_DATASETS):
+    task = "classification"
+
+    def __init__(
+        self,
+        augmentation_policy_path,
+        batch_size: int = 128,
+        data_dir: str = PATH_DATASETS,
+    ):
         super().__init__()
 
         assert os.path.exists(augmentation_policy_path)
         self.augments = A.load(augmentation_policy_path, data_format="yaml")
         self.data_dir = data_dir
         self.num_classes = 10
+        self.batch_size = batch_size
 
     def remove_item(self, index: int) -> None:
         del self.data[index]
@@ -128,8 +135,8 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_train,
             num_workers=os.cpu_count(),
             shuffle=True,
-            batch_size=BATCH_SIZE,
-            persistent_workers=False,
+            batch_size=self.batch_size,
+            persistent_workers=True,
             drop_last=True,
         )
 
@@ -138,8 +145,8 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_val,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=BATCH_SIZE,
-            persistent_workers=False,
+            batch_size=self.batch_size,
+            persistent_workers=True,
         )
 
     def test_dataloader(self):
@@ -147,8 +154,8 @@ class CIFAR10DataModule(L.LightningDataModule):
             self.cifar_test,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=BATCH_SIZE,
-            persistent_workers=False,
+            batch_size=self.batch_size,
+            persistent_workers=True,
         )
 
 
