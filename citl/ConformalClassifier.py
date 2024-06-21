@@ -26,6 +26,10 @@ def reduce_correct(example):
     y = example[:1]
     return y_hat[y.int()].bool()
 
+def approximate_quantile(x, q, num_samples=100000):
+    num_samples = min(num_samples, x.numel())
+    samples = x.flatten()[torch.randint(0, x.numel(), (num_samples,))]
+    return torch.quantile(samples, q)
 
 class ConformalClassifier:
 
@@ -67,7 +71,7 @@ class ConformalClassifier:
         num = scores.size()[0]
         self.quantiles = {}
         for alpha in alphas:
-            quantile = torch.quantile(scores, (num + 1) * (1 - alpha) / num)
+            quantile = approximate_quantile(scores, (num + 1) * (1 - alpha) / num)
             self.quantiles[alpha] = 1 - quantile
 
         self.cp_examples = []
