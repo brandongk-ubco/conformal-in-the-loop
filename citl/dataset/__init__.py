@@ -1,5 +1,4 @@
 from enum import Enum
-
 from functools import partial
 
 from .CIFAR10 import CIFAR10DataModule

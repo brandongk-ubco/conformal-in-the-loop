@@ -256,7 +256,10 @@ class CITLSegmenter(L.LightningModule):
             img.detach().cpu(),
             mask=target.detach().cpu(),
             prediction=y_hat[1].detach().cpu(),
-            prediction_set_size=uncertainty["prediction_set_size"].reshape(y.shape)[1].detach().cpu(),
+            prediction_set_size=uncertainty["prediction_set_size"]
+            .reshape(y.shape)[1]
+            .detach()
+            .cpu(),
         )
         self.logger.experiment.add_figure("test_example", fig, batch_idx)
         plt.close()

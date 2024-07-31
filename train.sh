@@ -2,6 +2,8 @@
 
 set -eux
 
+export $(cat .env | xargs)
+
 rm -rf lightning_logs
 rm .*.ckpt || true
 

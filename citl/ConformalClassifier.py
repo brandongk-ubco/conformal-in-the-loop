@@ -26,10 +26,12 @@ def reduce_correct(example):
     y = example[:1]
     return y_hat[y.int()].bool()
 
-def approximate_quantile(x, q, num_samples=100000):
+
+def approximate_quantile(x, q, num_samples=1000000):
     num_samples = min(num_samples, x.numel())
     samples = x.flatten()[torch.randint(0, x.numel(), (num_samples,))]
     return torch.quantile(samples, q)
+
 
 class ConformalClassifier:
 
@@ -76,7 +78,6 @@ class ConformalClassifier:
 
         self.cp_examples = []
         self.val_labels = []
-
 
     def measure_uncertainty(self, alpha=0.1):
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)

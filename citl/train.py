@@ -1,10 +1,15 @@
+import itertools
+import json
 import os
+import shutil
 import sys
+import tempfile
 
 import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
 from loguru import logger
+from neptune.types import File
 from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
@@ -136,7 +141,7 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=sys.maxsize,
+        max_epochs=1,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
@@ -148,3 +153,27 @@ def train(
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(ckpt_path="best", datamodule=datamodule)
+
+    quantiles = model.conformal_classifier.quantiles
+    quantiles = {k: v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
+    quantiles_json = json.dumps(quantiles)
+    if trainer_logger.log_dir:
+        with open(os.path.join(trainer_logger.log_dir, "quantiles.json"), "w") as fh:
+            fh.write(quantiles_json)
+
+    if type(trainer_logger) is L.loggers.NeptuneLogger:
+        trainer_logger.experiment["quantiles.json"].upload(
+            File.from_content(quantiles_json)
+        )
+
+    x, _, _ = next(itertools.islice(datamodule.train_dataloader(), 1, None))
+    input_sample = x[0]
+    with tempfile.NamedTemporaryFile() as tmp:
+        model.float().to_onnx(tmp.name, input_sample, export_params=True)
+
+        if trainer_logger.log_dir:
+            shutil.copy(tmp.name, os.path.join(trainer_logger.log_dir, "model.onnx"))
+
+        if type(trainer_logger) is L.loggers.NeptuneLogger:
+            trainer_logger.experiment["model.onnx"].upload(tmp.name)
+            trainer_logger.experiment.sync(wait=True)
