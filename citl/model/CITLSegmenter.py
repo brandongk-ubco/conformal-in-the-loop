@@ -266,8 +266,6 @@ class CITLSegmenter(L.LightningModule):
         )
         if type(self.trainer.logger) is TensorBoardLogger:
             self.logger.experiment.add_figure("test_example", fig, batch_idx)
-
-
         elif type(self.trainer.logger) is NeptuneLogger:
             self.logger.experiment["test/examples"].append(
                 fig
