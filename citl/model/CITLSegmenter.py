@@ -210,6 +210,9 @@ class CITLSegmenter(L.LightningModule):
             self.conformal_classifier.append(y_hat, y)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
+            quantiles = self.conformal_classifier.quantiles
+            quantiles = {f"quantile_{k}": v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
+            self.log_dict(quantiles, prog_bar=False)
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -261,7 +264,14 @@ class CITLSegmenter(L.LightningModule):
             .detach()
             .cpu(),
         )
-        self.logger.experiment.add_figure("test_example", fig, batch_idx)
+        if type(self.trainer.logger) is TensorBoardLogger:
+            self.logger.experiment.add_figure("test_example", fig, batch_idx)
+
+
+        elif type(self.trainer.logger) is NeptuneLogger:
+            self.logger.experiment["test/examples"].append(
+                fig
+            )
         plt.close()
 
         self.accuracy(y_hat, y)
