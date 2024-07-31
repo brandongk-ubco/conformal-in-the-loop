@@ -84,12 +84,24 @@ class CITLClassifier(L.LightningModule):
 
         y_hat = self(x)
 
-        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
+        if self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
+            if img.ndim > 2:
+                img = img.moveaxis(0, -1)
             img = img - img.min()
             img = img / img.max()
             label = self.trainer.datamodule.classes[target]
-            self.logger.experiment.add_image(f"{label}", img, self.global_step)
+            fig = plt.figure()
+            plt.imshow(img.detach().cpu().numpy())
+            plt.title(label)
+            plt.axis("off")
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_figure("example_image", fig, self.global_step)
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["training/example_image"].append(
+                    fig
+                )
+            plt.close()
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
@@ -128,6 +140,9 @@ class CITLClassifier(L.LightningModule):
             loss = loss.mean()
         else:
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()
+
+        self.accuracy(y_hat, y)
+        self.log("accuracy", self.accuracy)
 
         self.log("loss", loss)
         return loss

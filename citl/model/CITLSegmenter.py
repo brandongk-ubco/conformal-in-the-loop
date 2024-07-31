@@ -96,12 +96,17 @@ class CITLSegmenter(L.LightningModule):
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
 
-        if type(self.trainer.logger) is TensorBoardLogger and self.current_epoch == 0:
+        if self.current_epoch == 0:
             img, target = x[1, :, :, :], y[1]
             if img.ndim > 2:
                 img = img.moveaxis(0, -1)
             fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
-            self.logger.experiment.add_figure("example_image", fig, self.global_step)
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_figure("example_image", fig, self.global_step)
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["training/example_image"].append(
+                    fig
+                )
             plt.close()
 
         if self.selectively_backpropagate:
