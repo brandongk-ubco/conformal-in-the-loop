@@ -37,10 +37,10 @@ class CITLSegmenter(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="macro", ignore_index=0
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="macro", ignore_index=0
         )
 
         self.selectively_backpropagate = selectively_backpropagate
