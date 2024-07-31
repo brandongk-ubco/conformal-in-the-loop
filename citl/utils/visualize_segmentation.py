@@ -93,6 +93,10 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
             prediction_set_size == 1, prediction_set_size
         )
 
+        atypical = np.ma.masked_where(
+            prediction_set_size == 0, np.ones_like(prediction_set_size) * num_classes
+        )
+
         num_classes = prediction_set_size.max() if num_classes is None else num_classes
         if mode == "colwise":
             plt.subplot(1, num_subplots, subplot)
@@ -108,6 +112,14 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
 
         plt.imshow(
             prediction_set_size,
+            cmap="Reds",
+            interpolation="none",
+            alpha=0.5,
+            vmin=1,
+            vmax=num_classes,
+        )
+        plt.imshow(
+            atypical,
             cmap="Reds",
             interpolation="none",
             alpha=0.5,
