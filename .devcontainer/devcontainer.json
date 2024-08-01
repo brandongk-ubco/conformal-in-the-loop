@@ -3,7 +3,6 @@
 	"shutdownAction": "none",
 	"build": {
 		"dockerfile": "Dockerfile",
-		"args": { "LIGHTNING_VERSION": "2.1.0", "PYTHON_VERSION": "3.10", "PYTORCH_VERSION": "2.1", "CUDA_VERSION": "12.3.0"}
 	},
 
 	"mounts": [

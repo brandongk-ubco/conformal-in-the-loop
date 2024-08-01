@@ -23,12 +23,12 @@ IMAGE_SIZE=224
 #     "--lr-method=plateau" \
 #     "--method=score"
 
-python -m citl train CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--selectively-backpropagate" \
-    "--alpha=0.10" \
-    "--lr-method=plateau" \
-    "--method=score"
+# python -m citl train CityscapesFine efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--selectively-backpropagate" \
+#     "--alpha=0.10" \
+#     "--lr-method=plateau" \
+#     "--method=score"
 
 python -m citl train CityscapesFine efficientnet-b0 \
     "--augmentation-policy-path=./policies/cityscapes.yaml" \
