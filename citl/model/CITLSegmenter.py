@@ -99,11 +99,11 @@ class CITLSegmenter(L.LightningModule):
                 img = img.moveaxis(0, -1)
             fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
             if type(self.trainer.logger) is TensorBoardLogger:
-                self.logger.experiment.add_figure("example_image", fig, self.global_step)
-            elif type(self.trainer.logger) is NeptuneLogger:
-                self.logger.experiment["training/example_image"].append(
-                    fig
+                self.logger.experiment.add_figure(
+                    "example_image", fig, self.global_step
                 )
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["training/example_image"].append(fig)
             plt.close()
 
         if self.selectively_backpropagate:
@@ -127,15 +127,27 @@ class CITLSegmenter(L.LightningModule):
         self.accuracy(y_hat, y)
         self.log("accuracy", self.accuracy.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]], self.accuracy.compute().cpu().numpy()[1:])),
-            on_step=True, on_epoch=False
+            dict(
+                zip(
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
         )
 
         self.jaccard(y_hat, y)
         self.log("jaccard", self.jaccard.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]], self.jaccard.compute().cpu().numpy()[1:])),
-            on_step=True, on_epoch=False
+            dict(
+                zip(
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
         )
 
         self.log("loss", loss)
@@ -221,7 +233,10 @@ class CITLSegmenter(L.LightningModule):
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
             quantiles = self.conformal_classifier.quantiles
-            quantiles = {f"quantile_{k}": v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
+            quantiles = {
+                f"quantile_{k}": v.detach().cpu().numpy().tolist()
+                for k, v in quantiles.items()
+            }
             self.log_dict(quantiles, prog_bar=False)
         else:
             self.conformal_classifier.append(y_hat, y)
@@ -237,15 +252,27 @@ class CITLSegmenter(L.LightningModule):
         self.accuracy(y_hat, y)
         self.log("val_accuracy", self.accuracy.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]], self.accuracy.compute().cpu().numpy()[1:])),
-            on_step=False, on_epoch=True
+            dict(
+                zip(
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.jaccard(y_hat, y)
         self.log("val_jaccard", self.jaccard.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]], self.jaccard.compute().cpu().numpy()[1:])),
-            on_step=False, on_epoch=True
+            dict(
+                zip(
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
@@ -285,23 +312,33 @@ class CITLSegmenter(L.LightningModule):
         if type(self.trainer.logger) is TensorBoardLogger:
             self.logger.experiment.add_figure("test_example", fig, batch_idx)
         elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["test/examples"].append(
-                fig
-            )
+            self.logger.experiment["test/examples"].append(fig)
         plt.close()
 
         self.accuracy(y_hat, y)
         self.log("test_accuracy", self.accuracy.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]], self.accuracy.compute().cpu().numpy()[1:])),
-            on_step=False, on_epoch=True
+            dict(
+                zip(
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.jaccard(y_hat, y)
         self.log("test_jaccard", self.jaccard.compute()[1:].mean())
         self.log_dict(
-            dict(zip([f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]], self.jaccard.compute().cpu().numpy()[1:])),
-            on_step=False, on_epoch=True
+            dict(
+                zip(
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)

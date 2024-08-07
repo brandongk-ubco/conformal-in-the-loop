@@ -1,5 +1,6 @@
 import itertools
 import json
+import logging
 import os
 import shutil
 import sys
@@ -25,6 +26,8 @@ from citl import cli
 from .dataset import Dataset
 from .model.CITLClassifier import CITLClassifier
 from .model.CITLSegmenter import CITLSegmenter
+
+logging.getLogger("neptune").setLevel(logging.CRITICAL)
 
 
 @cli.command()
@@ -111,7 +114,9 @@ def train(
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
-        trainer_logger.experiment["sys/tags"].add("Baseline" if not selectively_backpropagate else "Method")
+        trainer_logger.experiment["sys/tags"].add(
+            "Baseline" if not selectively_backpropagate else "Method"
+        )
 
     model_callback_config = {
         "filename": "{epoch}-{val_loss:.3f}",
@@ -142,7 +147,7 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=sys.maxsize,
+        max_epochs=1,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,

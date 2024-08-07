@@ -1,23 +1,29 @@
 import os
-import torch
-from torch.utils.data import Dataset
-from PIL import Image
+
 import numpy as np
+import torch
+from PIL import Image
+from torch.utils.data import Dataset
+
 
 class YoloDataset(Dataset):
     def __init__(self, images_dir, labels_dir):
         self.images_dir = images_dir
         self.labels_dir = labels_dir
-        self.image_files = [f for f in os.listdir(images_dir) if f.endswith('.jpg')]
-        self.labels = np.load(os.path.join(labels_dir, 'labels.npz'), allow_pickle=True)["labels"]
-        self.images = np.load(os.path.join(images_dir, 'images.npz'), allow_pickle=True)["images"]
+        self.image_files = [f for f in os.listdir(images_dir) if f.endswith(".jpg")]
+        self.labels = np.load(
+            os.path.join(labels_dir, "labels.npz"), allow_pickle=True
+        )["labels"]
+        self.images = np.load(
+            os.path.join(images_dir, "images.npz"), allow_pickle=True
+        )["images"]
         assert len(self.image_files) == len(self.labels)
 
     def __len__(self):
         return len(self.image_files)
 
     def __getitem__(self, idx):
-        
+
         image = self.images[idx]
 
         boxes = []
@@ -42,10 +48,6 @@ class YoloDataset(Dataset):
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
 
-        target = {
-            'boxes': boxes,
-            'labels': labels
-        }
+        target = {"boxes": boxes, "labels": labels}
 
         return image, target
-    

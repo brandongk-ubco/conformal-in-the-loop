@@ -3,8 +3,9 @@ from functools import partial
 
 from .CIFAR10 import CIFAR10DataModule
 from .Cityscapes import CityscapesDataModule
-from .MNIST import MNISTDataModule
 from .DFire import DFireDataModule
+from .MNIST import MNISTDataModule
+
 
 class Dataset(str, Enum):
     CIFAR10 = "CIFAR10"

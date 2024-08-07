@@ -2,18 +2,21 @@ import os
 from typing import Any, Tuple
 
 import albumentations as A
+import numpy as np
 import pytorch_lightning as L
 import torch
-from .YoloDataset import YoloDataset
+from albumentations.pytorch import ToTensorV2
 from torch.utils.data import DataLoader, random_split
 from torchvision.transforms import v2
-from albumentations.pytorch import ToTensorV2
-import numpy as np
+
+from .YoloDataset import YoloDataset
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./datasets")
 
+
 def remove_extensions(file_list):
     return [os.path.splitext(filename)[0] for filename in file_list]
+
 
 class DFire(YoloDataset):
     def __init__(self, data_dir: str, train: bool, transform=None):
@@ -47,15 +50,13 @@ class DFire(YoloDataset):
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
             img = augmented["image"]
 
-        target = 0 if len(target['labels']) == 0 else 1
-        
+        target = 0 if len(target["labels"]) == 0 else 1
+
         return img, target, index
 
+
 class DFireDataModule(L.LightningDataModule):
-    classes = [
-        "none",
-        "fire"
-    ]
+    classes = ["no fire", "fire"]
 
     augments = None
 
@@ -76,7 +77,7 @@ class DFireDataModule(L.LightningDataModule):
         self.image_size = image_size
         if greyscale:
             raise NotImplementedError("Greyscale not implemented.")
-                
+
         self.transform = v2.Compose(
             [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
         )
@@ -91,10 +92,12 @@ class DFireDataModule(L.LightningDataModule):
             num_samples = len(dfire_full)
             num_val_samples = num_samples // 10
             num_train_samples = num_samples - num_val_samples
-            self.dfire_train, self.dfire_val = random_split(dfire_full, [num_train_samples, num_val_samples])
+            self.dfire_train, self.dfire_val = random_split(
+                dfire_full, [num_train_samples, num_val_samples]
+            )
             dfire_full.set_indices(self.dfire_train.indices, self.dfire_val.indices)
             dfire_full.augments = self.augments
-            
+
         if stage == "test" or stage is None:
             self.dfire_test = DFire(
                 self.data_dir, train=False, transform=self.transform
