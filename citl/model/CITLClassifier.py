@@ -331,7 +331,7 @@ class CITLClassifier(L.LightningModule):
 
             fig = plt.figure()
             plt.imshow(img.detach().cpu().numpy())
-            plt.title(expected)
+            plt.title(f"Ground Truth: {expected}")
             plt.suptitle(f"Predicted: {labels}")
             plt.axis("off")
             if type(self.trainer.logger) is TensorBoardLogger:
