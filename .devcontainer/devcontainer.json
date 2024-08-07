@@ -37,16 +37,9 @@
 	  },
 
 	"features": {
-		"common": {
-			"username": "automatic",
-			"uid": "automatic",
-			"gid": "automatic",
-			"installZsh": true,
-			"installOhMyZsh": true,
-			"upgradePackages": true,
-			"nonFreePackages": false
-		},
-		"git": "latest"
+		"ghcr.io/devcontainers/features/common-utils:2": {},
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/git-lfs:1": {}
 	},
 	"remoteUser": "vscode"
 }

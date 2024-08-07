@@ -4,18 +4,21 @@ from functools import partial
 from .CIFAR10 import CIFAR10DataModule
 from .Cityscapes import CityscapesDataModule
 from .MNIST import MNISTDataModule
-
+from .DFire import DFireDataModule
 
 class Dataset(str, Enum):
     CIFAR10 = "CIFAR10"
     MNIST = "MNIST"
     CityscapesCoarse = "CityscapesCoarse"
     CityscapesFine = "CityscapesFine"
+    DFire = "DFire"
 
     @staticmethod
     def get(Dataset):
         if Dataset == "CIFAR10":
             return CIFAR10DataModule
+        elif Dataset == "DFire":
+            return DFireDataModule
         elif Dataset == "MNIST":
             return MNISTDataModule
         elif Dataset == "CityscapesFine":
