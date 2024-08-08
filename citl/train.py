@@ -58,7 +58,6 @@ def train(
         net = create_model(
             model_name, num_classes=datamodule.num_classes, drop_rate=0.2
         )
-        datamodule.set_image_size(image_size, greyscale)
     elif datamodule.task == "segmentation":
         net = smp.Unet(
             encoder_name=model_name,
@@ -109,7 +108,6 @@ def train(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
-        trainer_logger.experiment["parameters/image_size"] = image_size
         trainer_logger.experiment["parameters/greysacale"] = greyscale
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["sys/tags"].add(model_name)
