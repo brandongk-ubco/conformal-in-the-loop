@@ -26,7 +26,6 @@ from .model.Segmenter import Segmenter
 def standardtrain(
     dataset: Dataset,
     model_name: str,
-    image_size: int = None,
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",

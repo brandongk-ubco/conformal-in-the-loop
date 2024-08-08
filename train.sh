@@ -13,9 +13,9 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain CIFAR10 mnasnet_small \
-    "--augmentation-policy-path=./policies/cifar10.yaml" \
-    "--lr-method=plateau"
+# python -m citl standardtrain CIFAR10 mnasnet_small \
+#     "--augmentation-policy-path=./policies/cifar10.yaml" \
+#     "--lr-method=plateau"
 
 python -m citl standardtrain CityscapesFine efficientnet-b0 \
     "--augmentation-policy-path=./policies/cityscapes.yaml" \
