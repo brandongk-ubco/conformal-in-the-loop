@@ -81,12 +81,7 @@ class MNISTDataModule(L.LightningDataModule):
         assert os.path.exists(augmentation_policy_path)
 
         self.augments = A.load(augmentation_policy_path, data_format="yaml")
-
-    def set_image_size(self, image_size: int, greyscale: bool):
-        if not greyscale:
-            raise AttributeError("MNIST is a greyscale dataset.")
-
-        self.image_size = image_size
+        self.image_size = 28
         self.transform = v2.Compose(
             [
                 v2.Compose(

@@ -42,7 +42,6 @@ def standardtrain(
         net = create_model(
             model_name, num_classes=datamodule.num_classes, drop_rate=0.2
         )
-        datamodule.set_image_size(image_size, greyscale)
     elif datamodule.task == "segmentation":
         net = smp.Unet(
             encoder_name=model_name,

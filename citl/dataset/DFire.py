@@ -72,12 +72,6 @@ class DFireDataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.num_classes = 2
         self.batch_size = batch_size
-
-    def set_image_size(self, image_size: int, greyscale: bool):
-        self.image_size = image_size
-        if greyscale:
-            raise NotImplementedError("Greyscale not implemented.")
-
         self.transform = v2.Compose(
             [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
         )

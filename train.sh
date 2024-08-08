@@ -9,9 +9,9 @@ rm .*.ckpt || true
 
 # STANDARD TRAINING BASELINES
 
-python -m citl standardtrain DFire mnasnet_small \
-    "--augmentation-policy-path=./policies/DFire.yaml" \
-    "--lr-method=plateau"
+# python -m citl standardtrain DFire mnasnet_small \
+#     "--augmentation-policy-path=./policies/DFire.yaml" \
+#     "--lr-method=plateau"
 
 python -m citl standardtrain CIFAR10 mnasnet_small \
     "--augmentation-policy-path=./policies/cifar10.yaml" \
