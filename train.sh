@@ -17,7 +17,7 @@ python -m citl standardtrain CIFAR10 mnasnet_small \
     "--augmentation-policy-path=./policies/cifar10.yaml" \
     "--lr-method=plateau"
 
-python -m citl standardtrain Cityscapes efficientnet-b0 \
+python -m citl standardtrain CityscapesFine efficientnet-b0 \
     "--augmentation-policy-path=./policies/cityscapes.yaml" \
     "--lr-method=plateau"
 
@@ -38,7 +38,7 @@ python -m citl train DFire mnasnet_small \
     "--method=score"
 
 python -m citl train CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/citys`capes.yaml" \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
     "--no-selectively-backpropagate" \
     "--alpha=0.10" \
     "--lr-method=plateau" \
