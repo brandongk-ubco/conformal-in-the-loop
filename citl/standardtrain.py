@@ -128,3 +128,6 @@ def standardtrain(
 
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(ckpt_path="best", datamodule=datamodule)
+
+    if os.environ.get("NEPTUNE_API_TOKEN"):
+        trainer_logger.experiment["sys/tags"].add("complete")

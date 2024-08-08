@@ -34,7 +34,6 @@ logging.getLogger("neptune").setLevel(logging.CRITICAL)
 def train(
     dataset: Dataset,
     model_name: str,
-    image_size: int = None,
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
@@ -177,3 +176,6 @@ def train(
         if type(trainer_logger) is L.loggers.NeptuneLogger:
             trainer_logger.experiment["model.onnx"].upload(tmp.name)
             trainer_logger.experiment.sync(wait=True)
+
+    if os.environ.get("NEPTUNE_API_TOKEN"):
+        trainer_logger.experiment["sys/tags"].add("complete")
