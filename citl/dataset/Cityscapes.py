@@ -38,7 +38,7 @@ class Cityscapes(BaseDataset):
 
         resize_transform = A.Compose(
             [
-                A.Resize(256, 512),
+                A.Resize(512, 1024),
                 ToTensorV2(),
             ]
         )

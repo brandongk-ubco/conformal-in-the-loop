@@ -1,4 +1,4 @@
-torchvision==0.16.0
+torchvision
 albumentations
 timm
 torch-tb-profiler
@@ -8,5 +8,7 @@ black
 loguru
 seaborn
 jupyter
+pretrainedmodels
+efficientnet-pytorch
 neptune>=1.0
 segmentation_models_pytorch @ git+https://github.com/jlcsilva/segmentation_models.pytorch

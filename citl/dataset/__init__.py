@@ -1,9 +1,9 @@
 from enum import Enum
-
 from functools import partial
 
 from .CIFAR10 import CIFAR10DataModule
 from .Cityscapes import CityscapesDataModule
+from .DFire import DFireDataModule
 from .MNIST import MNISTDataModule
 
 
@@ -12,11 +12,14 @@ class Dataset(str, Enum):
     MNIST = "MNIST"
     CityscapesCoarse = "CityscapesCoarse"
     CityscapesFine = "CityscapesFine"
+    DFire = "DFire"
 
     @staticmethod
     def get(Dataset):
         if Dataset == "CIFAR10":
             return CIFAR10DataModule
+        elif Dataset == "DFire":
+            return DFireDataModule
         elif Dataset == "MNIST":
             return MNISTDataModule
         elif Dataset == "CityscapesFine":

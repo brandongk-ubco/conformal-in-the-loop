@@ -24,10 +24,10 @@ class Segmenter(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="micro", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.lr = lr
         self.pixel_dropout = 0.0
@@ -56,10 +56,30 @@ class Segmenter(L.LightningModule):
         loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy)
+        self.log("accuracy", self.accuracy.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
 
         self.jaccard(y_hat, y)
-        self.log("jaccard", self.jaccard)
+        self.log("jaccard", self.jaccard.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
 
         self.log("loss", loss)
         return loss
@@ -71,13 +91,29 @@ class Segmenter(L.LightningModule):
         val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.accuracy(y_hat, y)
-        self.log(
-            "val_accuracy", self.accuracy, on_step=False, on_epoch=True, prog_bar=True
+        self.log("val_accuracy", self.accuracy.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.jaccard(y_hat, y)
-        self.log(
-            "val_jaccard", self.jaccard, on_step=False, on_epoch=True, prog_bar=True
+        self.log("val_jaccard", self.jaccard.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
@@ -89,10 +125,30 @@ class Segmenter(L.LightningModule):
         test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+        self.log("test_accuracy", self.accuracy.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.accuracy.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
+        )
 
         self.jaccard(y_hat, y)
-        self.log("test_jaccard", self.jaccard, on_step=False, on_epoch=True)
+        self.log("test_jaccard", self.jaccard.compute()[1:].mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    self.jaccard.compute().cpu().numpy()[1:],
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
+        )
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 

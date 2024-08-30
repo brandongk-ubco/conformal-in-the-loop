@@ -26,7 +26,6 @@ from .model.Segmenter import Segmenter
 def standardtrain(
     dataset: Dataset,
     model_name: str,
-    image_size: int = None,
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",
@@ -42,7 +41,6 @@ def standardtrain(
         net = create_model(
             model_name, num_classes=datamodule.num_classes, drop_rate=0.2
         )
-        datamodule.set_image_size(image_size, greyscale)
     elif datamodule.task == "segmentation":
         net = smp.Unet(
             encoder_name=model_name,
@@ -88,11 +86,11 @@ def standardtrain(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
-        trainer_logger.experiment["parameters/image_size"] = image_size
         trainer_logger.experiment["parameters/greysacale"] = greyscale
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
+        trainer_logger.experiment["sys/tags"].add("Standard")
 
     model_callback_config = {
         "filename": "{epoch}-{val_loss:.3f}",
@@ -126,9 +124,8 @@ def standardtrain(
         log_every_n_steps=10,
     )
 
-    tuner = Tuner(trainer)
-    # tuner.scale_batch_size(model, datamodule=datamodule, max_trials=7)
-    tuner.lr_find(model, datamodule=datamodule, max_lr=1e-2)
-
     trainer.fit(model=model, datamodule=datamodule)
     trainer.test(ckpt_path="best", datamodule=datamodule)
+
+    if os.environ.get("NEPTUNE_API_TOKEN"):
+        trainer_logger.experiment["sys/tags"].add("complete")
