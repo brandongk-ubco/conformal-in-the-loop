@@ -145,6 +145,7 @@ class CelebADataModule(L.LightningDataModule):
         "Wearing_Hat", "Wearing_Lipstick", "Wearing_Necklace", "Wearing_Necktie",
         "Young"
     ]
+    task = "classification"
 
     def __init__(
         self,
@@ -155,6 +156,7 @@ class CelebADataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.image_size = 224
+        self.num_classes = 2
 
         # Define the image transformations
         self.transform = transforms.Compose([
