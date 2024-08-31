@@ -2,7 +2,7 @@ import os
 import zipfile
 from functools import partial
 from typing import Any, Tuple
-import lightning as L
+import pytorch_lightning as L
 import numpy as np
 import pandas as pd
 import PIL
@@ -166,9 +166,9 @@ class CelebADataModule(L.LightningDataModule):
         ])
 
     def prepare_data(self):
-        CelebA(self.data_dir, split="train", download=True)
-        CelebA(self.data_dir, split="valid", download=True)
-        CelebA(self.data_dir, split="test", download=True)
+        CelebA(self.data_dir, split="train")
+        CelebA(self.data_dir, split="valid")
+        CelebA(self.data_dir, split="test")
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
