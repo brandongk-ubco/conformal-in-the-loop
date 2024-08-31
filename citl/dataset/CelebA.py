@@ -132,6 +132,7 @@ class CelebA(VisionDataset):
         self.filename = new_filename
         self.attr = torch.stack(new_attr)
 
+PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 class CelebADataModule(L.LightningDataModule):
     classes = [
