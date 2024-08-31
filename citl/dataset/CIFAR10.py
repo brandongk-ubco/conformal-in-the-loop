@@ -72,35 +72,19 @@ class CIFAR10DataModule(L.LightningDataModule):
         self.num_classes = 10
         self.batch_size = batch_size
 
+        self.image_size = 224
+
+        self.transform = v2.Compose(
+            [
+                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
+                v2.Resize(self.image_size, max_size=self.image_size + 1, antialias=False),
+                v2.CenterCrop(self.image_size),
+            ]
+        )
+
     def remove_item(self, index: int) -> None:
         del self.data[index]
         del self.targets[index]
-
-    def set_image_size(self, image_size: int, greyscale: bool):
-        self.image_size = image_size
-        if greyscale:
-            self.transform = v2.Compose(
-                [
-                    v2.Compose(
-                        [
-                            v2.ToImage(),
-                            v2.ToDtype(torch.uint8, scale=True),
-                            v2.ToDtype(torch.float32, scale=True),
-                        ]
-                    ),
-                    v2.Grayscale(num_output_channels=1),
-                    v2.Resize(image_size, max_size=image_size + 1, antialias=False),
-                    v2.CenterCrop(image_size),
-                ]
-            )
-        else:
-            self.transform = v2.Compose(
-                [
-                    v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                    v2.Resize(image_size, max_size=image_size + 1, antialias=False),
-                    v2.CenterCrop(image_size),
-                ]
-            )
 
     def prepare_data(self):
         CIFAR10(self.data_dir, train=True)

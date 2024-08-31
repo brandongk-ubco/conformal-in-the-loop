@@ -3,7 +3,6 @@
 	"shutdownAction": "none",
 	"build": {
 		"dockerfile": "Dockerfile",
-		"args": { "LIGHTNING_VERSION": "2.1.0", "PYTHON_VERSION": "3.10", "PYTORCH_VERSION": "2.1", "CUDA_VERSION": "12.3.0"}
 	},
 
 	"mounts": [
@@ -38,16 +37,9 @@
 	  },
 
 	"features": {
-		"common": {
-			"username": "automatic",
-			"uid": "automatic",
-			"gid": "automatic",
-			"installZsh": true,
-			"installOhMyZsh": true,
-			"upgradePackages": true,
-			"nonFreePackages": false
-		},
-		"git": "latest"
+		"ghcr.io/devcontainers/features/common-utils:2": {},
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/git-lfs:1": {}
 	},
 	"remoteUser": "vscode"
 }
