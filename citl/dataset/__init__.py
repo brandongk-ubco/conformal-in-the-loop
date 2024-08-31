@@ -5,6 +5,7 @@ from .CIFAR10 import CIFAR10DataModule
 from .Cityscapes import CityscapesDataModule
 from .DFire import DFireDataModule
 from .MNIST import MNISTDataModule
+from .CelebA import CelebADataModule
 
 
 class Dataset(str, Enum):
@@ -12,7 +13,7 @@ class Dataset(str, Enum):
     MNIST = "MNIST"
     CityscapesCoarse = "CityscapesCoarse"
     CityscapesFine = "CityscapesFine"
-    DFire = "DFire"
+    CelebA = 'CelebA'
 
     @staticmethod
     def get(Dataset):
@@ -26,6 +27,8 @@ class Dataset(str, Enum):
             return partial(CityscapesDataModule, train_mode="fine")
         elif Dataset == "CityscapesCoarse":
             return partial(CityscapesDataModule, train_mode="coarse")
+        elif Dataset == "CelebA":
+            return CelebADataModule
         else:
             raise NotImplementedError(f"Dataset {Dataset} not implemented.")
 
