@@ -15,6 +15,7 @@ from torchvision.datasets.utils import (
     verify_str_arg,
 )
 import torchvision.transforms as transforms
+import albumentations as A
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
@@ -150,14 +151,16 @@ class CelebADataModule(L.LightningDataModule):
 
     def __init__(
         self,
+        augmentation_policy_path,
         batch_size: int = 128,
         data_dir: str = PATH_DATASETS,
     ):
         super().__init__()
         self.data_dir = data_dir
-        self.batch_size = batch_size
+        self.batch_size = 128
         self.image_size = 224
         self.num_classes = 2
+        self.augments = A.load(augmentation_policy_path, data_format="yaml")
 
         # Define the image transformations
         self.transform = transforms.Compose([
