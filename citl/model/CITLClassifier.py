@@ -379,7 +379,7 @@ class CITLClassifier(L.LightningModule):
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
     
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self):
         df = pd.DataFrame(self.test_results)
         df.to_csv('test_results.csv', index=False)
         self.test_results = []
