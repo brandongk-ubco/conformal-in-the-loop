@@ -48,6 +48,7 @@ class CITLClassifier(L.LightningModule):
         self.weight_decay = 0.0
         self.method = method
         self.examples_without_uncertainty = {}
+        self.test_results = []
 
     def forward(self, x):
         if x.dim() == 2:
@@ -281,8 +282,74 @@ class CITLClassifier(L.LightningModule):
 
         self.log("val_loss", val_loss)
 
+    # def test_step(self, batch, batch_idx):
+    #     x, y, _ = batch
+    #     y_hat = self(x)
+
+    #     test_loss = F.cross_entropy(y_hat, y)
+
+    #     self.conformal_classifier.append(y_hat, y)
+    #     conformal_sets, uncertainty = self.conformal_classifier.measure_uncertainty(
+    #         alpha=self.val_alpha
+    #     )
+
+    #     metrics = dict(
+    #         [(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()]
+    #     )
+    #     self.log_dict(
+    #         metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
+    #     )
+        
+
+    #     for idx in range(x.shape[0]):
+    #         img, target = x[idx, :, :, :], y[idx]
+    #         if img.ndim > 2:
+    #             img = img.moveaxis(0, -1)
+    #         img = img - img.min()
+    #         img = img / img.max()
+    #         expected = self.trainer.datamodule.classes[target]
+
+    #         combined = list(zip(y_hat[idx], conformal_sets[idx], self.trainer.datamodule.classes))
+    #         filtered = [tup for tup in combined if tup[1]]
+
+    #         sorted_filtered = sorted(filtered, key=lambda x: -x[0])
+    #         labels = set([x[2] for x in sorted_filtered])
+    #         labels = str(labels).replace("'", "")
+
+    #         set_size = uncertainty["prediction_set_size"][idx].item()
+    #         correct = y_hat[idx].argmax().item() == target
+
+    #         if set_size == 0:
+    #             example_type = "atypical"
+    #         elif set_size == 1 and correct:
+    #             example_type = "realized"
+    #         elif set_size == 1 and not correct:
+    #             example_type = "confused"
+    #         elif set_size > 1:
+    #             example_type = "uncertain"
+    #         else:
+    #             raise ValueError(f"Unknown Set Size {set_size}")
+
+    #         fig = plt.figure()
+    #         plt.imshow(img.detach().cpu().numpy())
+    #         plt.title(f"Ground Truth: {expected}")
+    #         plt.suptitle(f"Predicted: {labels}")
+    #         plt.axis("off")
+    #         if type(self.trainer.logger) is TensorBoardLogger:
+    #             self.logger.experiment.add_figure(
+    #                 f"test_images_{example_type}", fig, self.global_step
+    #             )
+    #         elif type(self.trainer.logger) is NeptuneLogger:
+    #             self.logger.experiment[f"test/example_images/{example_type}"].append(fig)
+    #         plt.close()
+
+    #     self.accuracy(y_hat, y)
+    #     self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+
+    #     self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+    
     def test_step(self, batch, batch_idx):
-        x, y, _ = batch
+        x, y, attributes = batch
         y_hat = self(x)
 
         test_loss = F.cross_entropy(y_hat, y)
@@ -299,53 +366,23 @@ class CITLClassifier(L.LightningModule):
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
         
-
-        for idx in range(x.shape[0]):
-            img, target = x[idx, :, :, :], y[idx]
-            if img.ndim > 2:
-                img = img.moveaxis(0, -1)
-            img = img - img.min()
-            img = img / img.max()
-            expected = self.trainer.datamodule.classes[target]
-
-            combined = list(zip(y_hat[idx], conformal_sets[idx], self.trainer.datamodule.classes))
-            filtered = [tup for tup in combined if tup[1]]
-
-            sorted_filtered = sorted(filtered, key=lambda x: -x[0])
-            labels = set([x[2] for x in sorted_filtered])
-            labels = str(labels).replace("'", "")
-
-            set_size = uncertainty["prediction_set_size"][idx].item()
-            correct = y_hat[idx].argmax().item() == target
-
-            if set_size == 0:
-                example_type = "atypical"
-            elif set_size == 1 and correct:
-                example_type = "realized"
-            elif set_size == 1 and not correct:
-                example_type = "confused"
-            elif set_size > 1:
-                example_type = "uncertain"
-            else:
-                raise ValueError(f"Unknown Set Size {set_size}")
-
-            fig = plt.figure()
-            plt.imshow(img.detach().cpu().numpy())
-            plt.title(f"Ground Truth: {expected}")
-            plt.suptitle(f"Predicted: {labels}")
-            plt.axis("off")
-            if type(self.trainer.logger) is TensorBoardLogger:
-                self.logger.experiment.add_figure(
-                    f"test_images_{example_type}", fig, self.global_step
-                )
-            elif type(self.trainer.logger) is NeptuneLogger:
-                self.logger.experiment[f"test/example_images/{example_type}"].append(fig)
-            plt.close()
-
+        probabilities = torch.softmax(y_hat, dim=1)  
+        for i in range(len(y)):
+            self.test_results.append({
+                'label': y[i].item(),
+                'attribute': attributes[i].item(),
+                'probability': probabilities[i].tolist()
+            })
+        
         self.accuracy(y_hat, y)
         self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+    
+    def on_test_epoch_end(self):
+        df = pd.DataFrame(self.test_results)
+        df.to_csv('test_results.csv', index=False)
+        self.test_results = []
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
