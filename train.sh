@@ -3,12 +3,14 @@
 set -eux
 
 export $(cat .env | xargs)
+unset NEPTUNE_API_TOKEN
 
 rm -rf lightning_logs
 rm .*.ckpt || true
 
-python -m citl standardtrain CelebA resnet18 \
-    "--augmentation-policy-path=./policies/noop.yaml" \
+python -m citl train CelebA resnet18 \
+    "--selectively-backpropagate" \
+    "--augmentation-policy-path=./policies/celeba.yaml" \
     "--lr-method=plateau"
 
 # STANDARD TRAINING BASELINES
