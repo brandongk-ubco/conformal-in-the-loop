@@ -55,7 +55,10 @@ def train(
 
     if datamodule.task == "classification":
         net = create_model(
-            model_name, num_classes=datamodule.num_classes, drop_rate=0.2
+            model_name,
+            num_classes=datamodule.num_classes,
+            drop_rate=0.2,
+            pretrained=False,
         )
     elif datamodule.task == "segmentation":
         net = smp.Unet(

@@ -77,7 +77,9 @@ class CIFAR10DataModule(L.LightningDataModule):
         self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Resize(self.image_size, max_size=self.image_size + 1, antialias=False),
+                v2.Resize(
+                    self.image_size, max_size=self.image_size + 1, antialias=False
+                ),
                 v2.CenterCrop(self.image_size),
             ]
         )

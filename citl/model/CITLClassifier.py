@@ -299,7 +299,6 @@ class CITLClassifier(L.LightningModule):
     #     self.log_dict(
     #         metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
     #     )
-        
 
     #     for idx in range(x.shape[0]):
     #         img, target = x[idx, :, :, :], y[idx]
@@ -347,7 +346,7 @@ class CITLClassifier(L.LightningModule):
     #     self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
     #     self.log("test_loss", test_loss, on_step=False, on_epoch=True)
-    
+
     def test_step(self, batch, batch_idx):
         x, y, attributes = batch
         y_hat = self(x)
@@ -365,23 +364,25 @@ class CITLClassifier(L.LightningModule):
         self.log_dict(
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
-        
-        probabilities = torch.softmax(y_hat, dim=1)  
+
+        probabilities = torch.softmax(y_hat, dim=1)
         for i in range(len(y)):
-            self.test_results.append({
-                'label': y[i].item(),
-                'attribute': attributes[i].item(),
-                'probability': probabilities[i].tolist()
-            })
-        
+            self.test_results.append(
+                {
+                    "label": y[i].item(),
+                    "attribute": attributes[i].item(),
+                    "probability": probabilities[i].tolist(),
+                }
+            )
+
         self.accuracy(y_hat, y)
         self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
-    
+
     def on_test_epoch_end(self):
         df = pd.DataFrame(self.test_results)
-        df.to_csv('test_results.csv', index=False)
+        df.to_csv("test_results.csv", index=False)
         self.test_results = []
 
     def configure_optimizers(self):

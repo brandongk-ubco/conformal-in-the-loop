@@ -91,8 +91,10 @@ class MNISTDataModule(L.LightningDataModule):
                         v2.ToDtype(torch.float16, scale=True),
                     ]
                 ),
-                v2.Resize(self.image_size , max_size=self.image_size + 1, antialias=False),
-                v2.CenterCrop(self.image_size ),
+                v2.Resize(
+                    self.image_size, max_size=self.image_size + 1, antialias=False
+                ),
+                v2.CenterCrop(self.image_size),
             ]
         )
 
