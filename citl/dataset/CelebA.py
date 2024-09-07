@@ -11,11 +11,13 @@ from functools import partial
 from torchvision.datasets.utils import download_file_from_google_drive, check_integrity, verify_str_arg
 import torchvision.transforms as transforms
 import pytorch_lightning as L
+from typing import Any, Tuple
+import albumentations as A
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
-class CelebA(VisionDataset):
+class BaseDataset(VisionDataset):
     base_folder = "celeba"
 
     def __init__(self, root, split="train", target_type="attr", transform=None, target_transform=None, target_attr="Attractive", labelwise=False):
@@ -113,6 +115,28 @@ class CelebA(VisionDataset):
         self.filename = new_filename
         self.attr = torch.stack(new_attr)
 
+class CelebA(BaseDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.augment_indices = {}
+        self.augments = None
+
+    def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
+        for index in train_indices:
+            self.augment_indices[index] = True
+
+        for index in val_indices:
+            self.augment_indices[index] = False
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        img, target, sensitive = super().__getitem__(index)
+
+        if self.augment_indices[index]:
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
+            img = augmented["image"]
+
+        return img, target, sensitive
+
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 class CelebADataModule(L.LightningDataModule):
@@ -132,13 +156,16 @@ class CelebADataModule(L.LightningDataModule):
         task = "classification"
     
     
-        def __init__(self, batch_size=128, data_dir=PATH_DATASETS, image_size=224):
+        def __init__(self, augmentation_policy_path, batch_size=128, data_dir=PATH_DATASETS, image_size=224):
             super().__init__()
+            assert os.path.exists(augmentation_policy_path)
+            self.augments = A.load(augmentation_policy_path, data_format="yaml")
             self.data_dir = data_dir
-            self.batch_size = 128
+            self.batch_size = batch_size
             self.data_dir = data_dir
             self.image_size = image_size
             self.num_classes = 2
+            
             self.transform = transforms.Compose([
                 transforms.Resize((self.image_size, self.image_size)),
                 transforms.ToTensor(),
@@ -155,9 +182,13 @@ class CelebADataModule(L.LightningDataModule):
             if stage == 'fit' or stage is None:
                 self.celeba_train = CelebA(self.data_dir, split="train", transform=self.transform)
                 self.celeba_val = CelebA(self.data_dir, split="valid", transform=self.transform)
+                self.celeba_train.set_indices(range(len(self.celeba_train)), [])
+                self.celeba_val.set_indices([], range(len(self.celeba_val)))
+                self.celeba_train.augments = self.augments
 
             if stage == 'test' or stage is None:
                 self.celeba_test = CelebA(self.data_dir, split="test", transform=self.transform)
+                self.celeba_test.set_indices([], range(len(self.celeba_test)))
 
         def train_dataloader(self):
             return DataLoader(self.celeba_train, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count(), persistent_workers=True)

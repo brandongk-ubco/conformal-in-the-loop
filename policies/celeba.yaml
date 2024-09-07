@@ -1,0 +1,23 @@
+---
+__version__: 1.1.0
+transform:
+  __class_fullname__: Compose
+  p: 1
+  transforms:
+    - __class_fullname__: HorizontalFlip
+      p: 0.50
+    - __class_fullname__: CropAndPad
+      p: 1.00
+      px:
+        - 0
+        - 56
+    - __class_fullname__: CoarseDropout
+      p: 1.00
+      max_holes: 1
+      max_height: 56
+      max_width: 56
+    - __class_fullname__: ToTensorV2
+      p: 1.00
+  bbox_params:
+  keypoint_params:
+  additional_targets: {}
