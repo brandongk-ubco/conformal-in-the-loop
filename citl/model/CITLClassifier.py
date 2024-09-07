@@ -127,7 +127,11 @@ class CITLClassifier(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"]
             loss = F.cross_entropy(y_hat, y, reduction="none")
-            loss = loss * prediction_set_size
+            # loss = loss * prediction_set_size
+            # loss = loss * torch.log1p(prediction_set_size)
+            # loss = loss * prediction_set_size * prediction_set_size
+            loss = loss * torch.exp(prediction_set_size)
+
 
             y_flt = y.flatten()
             p_flt = prediction_set_size.flatten()
