@@ -11,11 +11,12 @@ from functools import partial
 from torchvision.datasets.utils import download_file_from_google_drive, check_integrity, verify_str_arg
 import torchvision.transforms as transforms
 import pytorch_lightning as L
+from typing import Any, Tuple
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 
-class CelebA(VisionDataset):
+class BaseDataset(VisionDataset):
     base_folder = "celeba"
 
     def __init__(self, root, split="train", target_type="attr", transform=None, target_transform=None, target_attr="Attractive", labelwise=False):
@@ -112,6 +113,28 @@ class CelebA(VisionDataset):
 
         self.filename = new_filename
         self.attr = torch.stack(new_attr)
+
+class CelebA(BaseDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.augment_indices = {}
+        self.augments = None
+
+    def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
+        for index in train_indices:
+            self.augment_indices[index] = True
+
+        for index in val_indices:
+            self.augment_indices[index] = False
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        img, target, sensitive = super().__getitem__(index)
+
+        if self.augment_indices[index]:
+            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
+            img = augmented["image"]
+
+        return img, target, sensitive
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 

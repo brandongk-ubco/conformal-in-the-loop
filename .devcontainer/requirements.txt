@@ -12,3 +12,4 @@ pretrainedmodels
 efficientnet-pytorch
 neptune>=1.0
 segmentation_models_pytorch @ git+https://github.com/jlcsilva/segmentation_models.pytorch
+gdown
