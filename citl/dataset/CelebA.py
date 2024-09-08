@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CelebA as BaseDataset
 from torchvision.transforms import v2
+import numpy as np
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
@@ -17,7 +18,7 @@ class CelebA(BaseDataset):
 
     def __init__(self, *args, **kwargs):
         self.cache = kwargs.pop("cache")
-        self.preprocess = kwargs.pop("transform")
+        self.resize = kwargs.pop("resize")
         super().__init__(*args, **kwargs)
         self.target_idx = None
         self.sensitive_idx = None
@@ -41,18 +42,19 @@ class CelebA(BaseDataset):
             img, target = self.cache[index]
         else:
             img, target = super().__getitem__(index)
+            img = self.resize(img)
             self.cache[index] = img, target
-
-        img = self.preprocess(img)
 
         train_target = target[self.target_idx]
         sensitive = target[self.sensitive_idx]
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
+            augmented = self.augments(image=np.array(img))
             img = augmented["image"]
 
-        img = self.normalize(img)
+        img = v2.Compose(
+            [v2.ToImage(), v2.ToDtype(torch.float32, scale=True), self.normalize]
+        )(img)
 
         return img, train_target, sensitive
 
@@ -90,12 +92,10 @@ class CelebADataModule(L.LightningDataModule):
         self.cache["valid"] = {}
         self.cache["test"] = {}
 
-        self.transform = v2.Compose(
+        self.resize = v2.Compose(
             [
-                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
                 v2.Resize(self.image_size, max_size=self.image_size + 1),
                 v2.CenterCrop(self.image_size),
-                v2.ToTensor(),
             ]
         )
 
@@ -104,14 +104,14 @@ class CelebADataModule(L.LightningDataModule):
             self.celeba_train = CelebA(
                 self.data_dir,
                 split="train",
-                transform=self.transform,
+                resize=self.resize,
                 target_type="attr",
                 cache=self.cache["train"],
             )
             self.celeba_val = CelebA(
                 self.data_dir,
                 split="valid",
-                transform=self.transform,
+                resize=self.resize,
                 target_type="attr",
                 cache=self.cache["valid"],
             )
@@ -123,7 +123,7 @@ class CelebADataModule(L.LightningDataModule):
             self.celeba_test = CelebA(
                 self.data_dir,
                 split="test",
-                transform=self.transform,
+                resize=self.resize,
                 target_type="attr",
                 cache=self.cache["test"],
             )
