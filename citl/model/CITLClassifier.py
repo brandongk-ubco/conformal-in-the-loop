@@ -19,7 +19,6 @@ class CITLClassifier(L.LightningModule):
         model,
         num_classes,
         selectively_backpropagate=False,
-        control_on_realized=False,
         alpha=0.10,
         val_alpha=0.10,
         lr=1e-3,
@@ -39,7 +38,6 @@ class CITLClassifier(L.LightningModule):
         )
 
         self.selectively_backpropagate = selectively_backpropagate
-        self.control_on_realized = control_on_realized
         self.alpha = alpha
         self.val_alpha = val_alpha
         self.lr = lr
@@ -425,7 +423,7 @@ class CITLClassifier(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="max" if self.control_on_realized else "min",
+                mode="max",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-6,
@@ -438,9 +436,7 @@ class CITLClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": (
-                        "val_realized" if self.control_on_realized else "val_loss"
-                    ),
+                    "monitor": "val_accuracy",
                 }
             ]
 

@@ -2,13 +2,13 @@ import os
 from typing import Any, Tuple
 
 import albumentations as A
+import numpy as np
 import pytorch_lightning as L
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CelebA as BaseDataset
 from torchvision.transforms import v2
-import numpy as np
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
@@ -108,10 +108,7 @@ class CelebADataModule(L.LightningDataModule):
 
         if stage == "test":
             self.celeba_test = CelebA(
-                self.data_dir,
-                split="test",
-                resize=self.resize,
-                target_type="attr"
+                self.data_dir, split="test", resize=self.resize, target_type="attr"
             )
             self.celeba_test.set_indices([], range(len(self.celeba_test)))
 
