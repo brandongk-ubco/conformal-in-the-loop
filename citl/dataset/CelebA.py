@@ -38,7 +38,7 @@ class CelebA(BaseDataset):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        if index in self.cache:
+        if self.cache[index] is not None:
             img, target = self.cache[index]
         else:
             img, target = super().__getitem__(index)
@@ -88,9 +88,9 @@ class CelebADataModule(L.LightningDataModule):
         self.num_classes = 2
         self.manager = Manager()
         self.cache = self.manager.dict()
-        self.cache["train"] = {}
-        self.cache["valid"] = {}
-        self.cache["test"] = {}
+        self.cache["train"] = []
+        self.cache["valid"] = []
+        self.cache["test"] = []
 
         self.resize = v2.Compose(
             [
@@ -108,6 +108,8 @@ class CelebADataModule(L.LightningDataModule):
                 target_type="attr",
                 cache=self.cache["train"],
             )
+            self.cache["train"] = [None] * len(self.celeba_train)
+            self.celeba_train.cache = self.cache["train"]
             self.celeba_val = CelebA(
                 self.data_dir,
                 split="valid",
@@ -115,6 +117,8 @@ class CelebADataModule(L.LightningDataModule):
                 target_type="attr",
                 cache=self.cache["valid"],
             )
+            self.cache["valid"] = [None] * len(self.celeba_val)
+            self.celeba_val.cache = self.cache["valid"]
             self.celeba_train.set_indices(range(len(self.celeba_train)), [])
             self.celeba_val.set_indices([], range(len(self.celeba_val)))
             self.celeba_train.augments = self.augments
@@ -127,6 +131,8 @@ class CelebADataModule(L.LightningDataModule):
                 target_type="attr",
                 cache=self.cache["test"],
             )
+            self.cache["test"] = [None] * len(self.celeba_test)
+            self.celeba_test.cache = self.cache["test"]
             self.celeba_test.set_indices([], range(len(self.celeba_test)))
 
     def train_dataloader(self):
