@@ -35,7 +35,7 @@ class CITLClassifier(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="micro"
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.selectively_backpropagate = selectively_backpropagate
@@ -143,7 +143,17 @@ class CITLClassifier(L.LightningModule):
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
         self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy)
+        self.log("accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
 
         self.log("loss", loss)
         return loss
@@ -278,7 +288,17 @@ class CITLClassifier(L.LightningModule):
             self.log_dict(metrics, prog_bar=True)
 
         self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy, prog_bar=True)
+        self.log("val_accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
+        )
 
         self.log("val_loss", val_loss)
 
@@ -376,7 +396,17 @@ class CITLClassifier(L.LightningModule):
             )
 
         self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+        self.log("test_accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=False,
+            on_epoch=True,
+        )
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
