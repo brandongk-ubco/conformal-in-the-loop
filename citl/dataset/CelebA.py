@@ -17,6 +17,7 @@ class CelebA(BaseDataset):
 
     def __init__(self, *args, **kwargs):
         self.cache = kwargs.pop("cache")
+        self.preprocess = kwargs.pop("transform")
         super().__init__(*args, **kwargs)
         self.target_idx = None
         self.sensitive_idx = None
@@ -42,8 +43,7 @@ class CelebA(BaseDataset):
             img, target = super().__getitem__(index)
             self.cache[index] = img, target
 
-        if self.transform is not None:
-            img = self.transform(img)
+        img = self.preprocess(img)
 
         train_target = target[self.target_idx]
         sensitive = target[self.sensitive_idx]
