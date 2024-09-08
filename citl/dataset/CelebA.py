@@ -1,38 +1,32 @@
 import os
-import zipfile
-from functools import partial
-from os.path import join
+from multiprocessing import Manager
 from typing import Any, Tuple
 
 import albumentations as A
-import numpy as np
-import pandas as pd
-import PIL
 import pytorch_lightning as L
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from torchvision.datasets.utils import (
-    check_integrity,
-    download_file_from_google_drive,
-    verify_str_arg,
-)
-from torchvision.datasets.vision import VisionDataset
-from torchvision.transforms import v2
 from torchvision.datasets import CelebA as BaseDataset
+from torchvision.transforms import v2
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
+
 class CelebA(BaseDataset):
+
     def __init__(self, *args, **kwargs):
+        self.cache = kwargs.pop("cache")
         super().__init__(*args, **kwargs)
+        self.target_idx = None
+        self.sensitive_idx = None
         self.augment_indices = {}
         self.augments = None
         self.normalize = transforms.Normalize(
             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
-        self.target_idx = None
-        self.sensitive_idx = None
+        self.target_idx = self.attr_names.index("Wavy_Hair")
+        self.sensitive_idx = self.attr_names.index("Male")
 
     def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
         for index in train_indices:
@@ -42,18 +36,17 @@ class CelebA(BaseDataset):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = super().__getitem__(index)
-
-        if self.target_idx is None:
-            self.target_idx = self.attr_names.index("Wavy_Hair")
-        if self.sensitive_idx is None:
-            self.sensitive_idx = self.attr_names.index("Male")
-
-        train_target = target[self.target_idx]
-        sensitive = target[self.sensitive_idx]
+        if index in self.cache:
+            img, target = self.cache[index]
+        else:
+            img, target = super().__getitem__(index)
+            self.cache[index] = img, target
 
         if self.transform is not None:
             img = self.transform(img)
+
+        train_target = target[self.target_idx]
+        sensitive = target[self.sensitive_idx]
 
         if self.augment_indices[index]:
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0))
@@ -91,6 +84,11 @@ class CelebADataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.image_size = image_size
         self.num_classes = 2
+        self.manager = Manager()
+        self.cache = self.manager.dict()
+        self.cache["train"] = {}
+        self.cache["valid"] = {}
+        self.cache["test"] = {}
 
         self.transform = v2.Compose(
             [
@@ -101,26 +99,33 @@ class CelebADataModule(L.LightningDataModule):
             ]
         )
 
-    def prepare_data(self):
-        CelebA(self.data_dir, split="train")
-        CelebA(self.data_dir, split="valid")
-        CelebA(self.data_dir, split="test")
-
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             self.celeba_train = CelebA(
-                self.data_dir, split="train", transform=self.transform, target_type="attr"
+                self.data_dir,
+                split="train",
+                transform=self.transform,
+                target_type="attr",
+                cache=self.cache["train"],
             )
             self.celeba_val = CelebA(
-                self.data_dir, split="valid", transform=self.transform, target_type="attr"
+                self.data_dir,
+                split="valid",
+                transform=self.transform,
+                target_type="attr",
+                cache=self.cache["valid"],
             )
             self.celeba_train.set_indices(range(len(self.celeba_train)), [])
             self.celeba_val.set_indices([], range(len(self.celeba_val)))
             self.celeba_train.augments = self.augments
 
-        if stage == "test" or stage is None:
+        if stage == "test":
             self.celeba_test = CelebA(
-                self.data_dir, split="test", transform=self.transform, target_type="attr"
+                self.data_dir,
+                split="test",
+                transform=self.transform,
+                target_type="attr",
+                cache=self.cache["test"],
             )
             self.celeba_test.set_indices([], range(len(self.celeba_test)))
 
