@@ -1,5 +1,4 @@
 import os
-from multiprocessing import Manager
 from typing import Any, Tuple
 
 import albumentations as A
@@ -17,7 +16,6 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 class CelebA(BaseDataset):
 
     def __init__(self, *args, **kwargs):
-        self.cache = kwargs.pop("cache")
         self.resize = kwargs.pop("resize")
         super().__init__(*args, **kwargs)
         self.target_idx = None
@@ -38,12 +36,8 @@ class CelebA(BaseDataset):
             self.augment_indices[index] = False
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        if self.cache[index] is not None:
-            img, target = self.cache[index]
-        else:
-            img, target = super().__getitem__(index)
-            img = self.resize(img)
-            self.cache[index] = img, target
+        img, target = super().__getitem__(index)
+        img = self.resize(img)
 
         train_target = target[self.target_idx]
         sensitive = target[self.sensitive_idx]
@@ -86,11 +80,6 @@ class CelebADataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.image_size = image_size
         self.num_classes = 2
-        self.manager = Manager()
-        self.cache = self.manager.dict()
-        self.cache["train"] = []
-        self.cache["valid"] = []
-        self.cache["test"] = []
 
         self.resize = v2.Compose(
             [
@@ -106,19 +95,13 @@ class CelebADataModule(L.LightningDataModule):
                 split="train",
                 resize=self.resize,
                 target_type="attr",
-                cache=self.cache["train"],
             )
-            self.cache["train"] = [None] * len(self.celeba_train)
-            self.celeba_train.cache = self.cache["train"]
             self.celeba_val = CelebA(
                 self.data_dir,
                 split="valid",
                 resize=self.resize,
                 target_type="attr",
-                cache=self.cache["valid"],
             )
-            self.cache["valid"] = [None] * len(self.celeba_val)
-            self.celeba_val.cache = self.cache["valid"]
             self.celeba_train.set_indices(range(len(self.celeba_train)), [])
             self.celeba_val.set_indices([], range(len(self.celeba_val)))
             self.celeba_train.augments = self.augments
@@ -128,11 +111,8 @@ class CelebADataModule(L.LightningDataModule):
                 self.data_dir,
                 split="test",
                 resize=self.resize,
-                target_type="attr",
-                cache=self.cache["test"],
+                target_type="attr"
             )
-            self.cache["test"] = [None] * len(self.celeba_test)
-            self.celeba_test.cache = self.cache["test"]
             self.celeba_test.set_indices([], range(len(self.celeba_test)))
 
     def train_dataloader(self):
