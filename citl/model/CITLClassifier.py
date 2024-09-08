@@ -297,7 +297,7 @@ class CITLClassifier(L.LightningModule):
             on_step=False,
             on_epoch=True,
         )
-
+        self.log("val_min_accuracy", self.accuracy.compute().min())
         self.log("val_loss", val_loss)
 
     # def test_step(self, batch, batch_idx):

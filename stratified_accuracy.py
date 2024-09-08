@@ -15,4 +15,7 @@ accuracy = test_results.groupby(['label', 'attribute']).apply(
     lambda group: (group['prediction'] == group['ground_truth']).mean()
 )
 
+counts = test_results.groupby(['label', 'attribute']).size().reset_index(name='count')
+
 print(accuracy)
+print(counts)

@@ -117,8 +117,8 @@ def train(
         )
 
     model_callback_config = {
-        "filename": "{epoch}-{val_accuracy:.3f}",
-        "monitor": "val_accuracy",
+        "filename": "{epoch}-{val_min_accuracy:.3f}",
+        "monitor": "val_min_accuracy",
         "mode": "max",
         "save_top_k": 1,
         "save_last": True,
@@ -132,7 +132,7 @@ def train(
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_accuracy",
+            monitor="val_min_accuracy",
             mode="max",
             patience=20,
         ),
