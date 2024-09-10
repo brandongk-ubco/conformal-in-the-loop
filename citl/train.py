@@ -57,7 +57,6 @@ def train(
             model_name,
             num_classes=datamodule.num_classes,
             drop_rate=0.2,
-            pretrained=False,
         )
     elif datamodule.task == "segmentation":
         net = smp.Unet(

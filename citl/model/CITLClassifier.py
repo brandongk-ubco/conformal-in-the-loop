@@ -436,7 +436,7 @@ class CITLClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_accuracy",
+                    "monitor": "val_min_accuracy",
                 }
             ]
 
