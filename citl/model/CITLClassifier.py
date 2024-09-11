@@ -128,15 +128,15 @@ class CITLClassifier(L.LightningModule):
             loss = F.cross_entropy(y_hat, y, reduction="none")
 
             y_flt = y.flatten()
-            confusion_weights = torch.ones_like(loss)
+            # confusion_weights = torch.ones_like(loss)
 
-            max_probability = y_hat.softmax(dim=1).max(dim=1).values
-            quantile = self.conformal_classifier.quantiles[self.alpha]
+            # max_probability = y_hat.softmax(dim=1).max(dim=1).values
+            # quantile = self.conformal_classifier.quantiles[self.alpha]
             
-            confusion_weights_unfiltered = 4 * (torch.exp(-max_probability-quantile)) - math.exp(-2))) / (1 - math.exp(-2))
-            confusion_weights[uncertainty["confused"]] = confusion_weights_unfiltered[uncertainty["confused"]]
+            # confusion_weights_unfiltered = 4 * (torch.exp(-max_probability-quantile)) - math.exp(-2)) / (1 - math.exp(-2))
+            # confusion_weights[uncertainty["confused"]] = confusion_weights_unfiltered[uncertainty["confused"]]
 
-            loss_weights = confusion_weights * prediction_set_size
+            loss_weights = prediction_set_size
 
             for clazz in range(self.num_classes):
                 class_idxs = y_flt == clazz

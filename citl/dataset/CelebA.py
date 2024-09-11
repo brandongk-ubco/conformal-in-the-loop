@@ -50,7 +50,27 @@ class CelebA(BaseDataset):
             [v2.ToImage(), v2.ToDtype(torch.float32, scale=True), self.normalize]
         )(img)
 
-        return img, train_target, sensitive
+        TRAIN_TARGET_WOMEN = 0
+        TRAIN_TARGET_MEN = 1
+        SENSITIVE_NOT_WAVY = 0
+        SENSITIVE_WAVY = 1
+
+        classes = [
+            "Men - Not Wavy",
+            "Men - Wavy",
+            "Women - Not Wavy",
+            "Women - Wavy",
+        ]
+        if train_target == TRAIN_TARGET_MEN and sensitive == SENSITIVE_NOT_WAVY:
+            combined_target = classes.index("Men - Not Wavy")
+        if train_target == TRAIN_TARGET_WOMEN and sensitive == SENSITIVE_NOT_WAVY:
+            combined_target = classes.index("Women - Not Wavy")
+        if train_target == TRAIN_TARGET_MEN and sensitive == SENSITIVE_WAVY:
+            combined_target = classes.index("Men - Wavy")
+        elif train_target == TRAIN_TARGET_WOMEN and sensitive == SENSITIVE_WAVY:
+            combined_target = classes.index("Women - Wavy")
+
+        return img, combined_target, sensitive
 
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
@@ -59,8 +79,10 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 class CelebADataModule(L.LightningDataModule):
 
     classes = [
-        "Not Wavy",
-        "Wavy",
+        "Men - Not Wavy",
+        "Men - Wavy",
+        "Women - Not Wavy",
+        "Women - Wavy",
     ]
 
     task = "classification"
@@ -79,7 +101,7 @@ class CelebADataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.data_dir = data_dir
         self.image_size = image_size
-        self.num_classes = 2
+        self.num_classes = 4
 
         self.resize = v2.Compose(
             [
