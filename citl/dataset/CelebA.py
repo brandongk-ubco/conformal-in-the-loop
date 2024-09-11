@@ -50,10 +50,10 @@ class CelebA(BaseDataset):
             [v2.ToImage(), v2.ToDtype(torch.float32, scale=True), self.normalize]
         )(img)
 
-        TRAIN_TARGET_WOMEN = 0
-        TRAIN_TARGET_MEN = 1
-        SENSITIVE_NOT_WAVY = 0
-        SENSITIVE_WAVY = 1
+        TRAIN_TARGET_NOT_WAVY = 0
+        TRAIN_TARGET_WAVY = 1
+        SENSITIVE_FEMALE = 0
+        SENSITIVE_MALE = 1
 
         classes = [
             "Men - Not Wavy",
@@ -61,13 +61,13 @@ class CelebA(BaseDataset):
             "Women - Not Wavy",
             "Women - Wavy",
         ]
-        if train_target == TRAIN_TARGET_MEN and sensitive == SENSITIVE_NOT_WAVY:
+        if train_target == TRAIN_TARGET_NOT_WAVY and sensitive == SENSITIVE_MALE:
             combined_target = classes.index("Men - Not Wavy")
-        if train_target == TRAIN_TARGET_WOMEN and sensitive == SENSITIVE_NOT_WAVY:
+        if train_target == TRAIN_TARGET_NOT_WAVY and sensitive == SENSITIVE_FEMALE:
             combined_target = classes.index("Women - Not Wavy")
-        if train_target == TRAIN_TARGET_MEN and sensitive == SENSITIVE_WAVY:
+        if train_target == TRAIN_TARGET_WAVY and sensitive == SENSITIVE_MALE:
             combined_target = classes.index("Men - Wavy")
-        elif train_target == TRAIN_TARGET_WOMEN and sensitive == SENSITIVE_WAVY:
+        elif train_target == TRAIN_TARGET_WAVY and sensitive == SENSITIVE_FEMALE:
             combined_target = classes.index("Women - Wavy")
 
         return img, combined_target, sensitive
