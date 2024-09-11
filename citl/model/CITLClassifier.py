@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
+import math
 
 from ..ConformalClassifier import ConformalClassifier
 
@@ -125,17 +126,26 @@ class CITLClassifier(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"]
             loss = F.cross_entropy(y_hat, y, reduction="none")
-            loss = loss * prediction_set_size
 
             y_flt = y.flatten()
-            p_flt = prediction_set_size.flatten()
+            confusion_weights = torch.ones_like(loss)
+
+            max_probability = y_hat.softmax(dim=1).max(dim=1).values
+            quantile = self.conformal_classifier.quantiles[self.alpha]
+            
+            confusion_weights_unfiltered = 4 * (torch.exp(-max_probability-quantile)) - math.exp(-2))) / (1 - math.exp(-2))
+            confusion_weights[uncertainty["confused"]] = confusion_weights_unfiltered[uncertainty["confused"]]
+
+            loss_weights = confusion_weights * prediction_set_size
+
             for clazz in range(self.num_classes):
                 class_idxs = y_flt == clazz
                 count = class_idxs.sum()
-                weights = p_flt[class_idxs].sum()
+                weights = loss_weights[class_idxs].sum()
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
 
+            loss = loss * loss_weights
             loss = loss.mean()
         else:
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()

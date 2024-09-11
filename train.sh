@@ -9,7 +9,7 @@ rm .*.ckpt || true
 
 python -m citl train CelebA resnet18 \
     "--selectively-backpropagate" \
-    "--alpha=0.01" \
+    "--alpha=0.10" \
     "--augmentation-policy-path=./policies/celeba.yaml" \
     "--lr-method=plateau"
 
