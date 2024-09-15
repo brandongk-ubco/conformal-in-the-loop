@@ -1,3 +1,4 @@
+import math
 from statistics import mean
 
 import numpy as np
@@ -9,7 +10,6 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
-import math
 
 from ..ConformalClassifier import ConformalClassifier
 
@@ -132,7 +132,7 @@ class CITLClassifier(L.LightningModule):
 
             # max_probability = y_hat.softmax(dim=1).max(dim=1).values
             # quantile = self.conformal_classifier.quantiles[self.alpha]
-            
+
             # confusion_weights_unfiltered = 4 * (torch.exp(-max_probability-quantile)) - math.exp(-2)) / (1 - math.exp(-2))
             # confusion_weights[uncertainty["confused"]] = confusion_weights_unfiltered[uncertainty["confused"]]
 

@@ -99,7 +99,6 @@ class MNISTDataModule(L.LightningDataModule):
         )
 
     def prepare_data(self):
-        # download
         MNIST(self.data_dir, train=True, download=True)
         MNIST(self.data_dir, train=False, download=True)
 

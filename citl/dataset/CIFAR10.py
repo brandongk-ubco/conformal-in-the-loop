@@ -88,10 +88,6 @@ class CIFAR10DataModule(L.LightningDataModule):
         del self.data[index]
         del self.targets[index]
 
-    def prepare_data(self):
-        CIFAR10(self.data_dir, train=True)
-        CIFAR10(self.data_dir, train=False)
-
     def remove_train_example(self, idx):
         del self.cifar_train.indices[idx]
 
