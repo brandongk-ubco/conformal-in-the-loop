@@ -37,6 +37,12 @@ class CITLClassifier(L.LightningModule):
         self.accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none"
         )
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
+        )
+        self.val_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
+        )
 
         self.selectively_backpropagate = selectively_backpropagate
         self.alpha = alpha
@@ -70,6 +76,7 @@ class CITLClassifier(L.LightningModule):
         self.conformal_classifier.reset()
 
     def on_train_epoch_start(self) -> None:
+        self.accuracy.reset()
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.class_weights = dict(
@@ -150,13 +157,13 @@ class CITLClassifier(L.LightningModule):
         else:
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
-        self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy.compute().mean())
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
                     [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
             on_step=True,
@@ -261,6 +268,7 @@ class CITLClassifier(L.LightningModule):
         plt.close()
 
     def on_validation_epoch_start(self) -> None:
+        self.val_accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
             len(self.trainer.datamodule.val_dataloader()) // 5
@@ -293,19 +301,19 @@ class CITLClassifier(L.LightningModule):
             )
             self.log_dict(metrics, prog_bar=True)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy.compute().mean())
+        accs = self.val_accuracy(y_hat, y)
+        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
-            on_step=False,
-            on_epoch=True,
+            on_step=True,
+            on_epoch=False,
         )
-        self.log("val_min_accuracy", self.accuracy.compute().min())
+        self.log("val_min_accuracy", accs.min())
         self.log("val_loss", val_loss)
 
     # def test_step(self, batch, batch_idx):
@@ -373,6 +381,9 @@ class CITLClassifier(L.LightningModule):
 
     #     self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
+    def on_test_epoch_start(self):
+        self.test_accuracy.reset()
+
     def test_step(self, batch, batch_idx):
         x, y, attributes = batch
         y_hat = self(x)
@@ -380,7 +391,7 @@ class CITLClassifier(L.LightningModule):
         test_loss = F.cross_entropy(y_hat, y)
 
         self.conformal_classifier.append(y_hat, y)
-        conformal_sets, uncertainty = self.conformal_classifier.measure_uncertainty(
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(
             alpha=self.val_alpha
         )
 
@@ -401,17 +412,17 @@ class CITLClassifier(L.LightningModule):
                 }
             )
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy.compute().mean())
+        accs = self.test_accuracy(y_hat, y)
+        self.log("test_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
-            on_step=False,
-            on_epoch=True,
+            on_step=True,
+            on_epoch=False,
         )
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)

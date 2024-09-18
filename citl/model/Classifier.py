@@ -27,6 +27,12 @@ class Classifier(L.LightningModule):
         self.accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none"
         )
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
+        )
+        self.val_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
+        )
 
         self.lr = lr
         self.lr_method = lr_method
@@ -46,6 +52,9 @@ class Classifier(L.LightningModule):
 
         return y_hat
 
+    def on_train_epoch_start(self) -> None:
+        self.accuracy.reset()
+
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
 
@@ -53,13 +62,13 @@ class Classifier(L.LightningModule):
 
         loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
-        self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy.compute().mean())
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
                     [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
             on_step=True,
@@ -69,19 +78,22 @@ class Classifier(L.LightningModule):
         self.log("loss", loss)
         return loss
 
+    def on_validation_epoch_start(self) -> None:
+        self.val_accuracy.reset()
+
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
         val_loss = F.cross_entropy(y_hat, y)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy.compute().mean())
+        accs = self.val_accuracy(y_hat, y)
+        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
             on_step=True,
@@ -90,17 +102,20 @@ class Classifier(L.LightningModule):
 
         self.log("val_loss", val_loss)
 
+    def on_test_epoch_start(self):
+        self.test_accuracy.reset()
+
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy.compute().mean())
+        accs = self.test_accuracy(y_hat, y)
+        self.log("test_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    self.accuracy.compute().cpu().numpy(),
+                    accs,
                 )
             ),
             on_step=True,

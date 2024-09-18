@@ -7,7 +7,13 @@ export $(cat .env | xargs)
 rm -rf lightning_logs
 rm .*.ckpt || true
 
-python -m citl standardtrain CelebA resnet18 \
+# python -m citl standardtrain CelebA resnet18 \
+#     "--augmentation-policy-path=./policies/celeba.yaml" \
+#     "--lr-method=plateau"
+
+python -m citl train CelebA resnet18 \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
     "--augmentation-policy-path=./policies/celeba.yaml" \
     "--lr-method=plateau"
 
