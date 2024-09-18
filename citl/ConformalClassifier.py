@@ -44,6 +44,12 @@ class ConformalClassifier:
         self.val_labels = []
 
     def append(self, y_hat, y):
+        
+        if torch.is_tensor(y_hat):
+            y_hat = y_hat.detach()
+        if torch.is_tensor(y):
+            y = y.detach()
+
         if y_hat.ndim > 2:
             y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
 
@@ -51,9 +57,7 @@ class ConformalClassifier:
             y = y.flatten()
 
         if torch.is_tensor(y_hat):
-            y_hat = y_hat.softmax(axis=1).detach()
-        if torch.is_tensor(y):
-            y = y.detach()
+            y_hat = y_hat.softmax(axis=1)
 
         assert y.ndim == 1
         assert y_hat.ndim == 2

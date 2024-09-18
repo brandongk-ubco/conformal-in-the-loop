@@ -261,8 +261,6 @@ class CITLClassifier(L.LightningModule):
         plt.close()
 
     def on_validation_epoch_start(self) -> None:
-        super().on_validation_epoch_start()
-        self.accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
             len(self.trainer.datamodule.val_dataloader()) // 5
