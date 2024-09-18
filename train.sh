@@ -7,16 +7,20 @@ export $(cat .env | xargs)
 rm -rf lightning_logs
 rm .*.ckpt || true
 
-numbers=(0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10)
+python -m citl standardtrain CelebA resnet18 \
+    "--augmentation-policy-path=./policies/celeba.yaml" \
+    "--lr-method=plateau"
 
-for alpha in "${numbers[@]}"
-do
-    python -m citl train CelebA resnet18 \
-        "--selectively-backpropagate" \
-        "--alpha=${alpha}" \
-        "--augmentation-policy-path=./policies/celeba.yaml" \
-        "--lr-method=plateau"
-done
+# numbers=(0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10)
+
+# for alpha in "${numbers[@]}"
+# do
+#     python -m citl train CelebA resnet18 \
+#         "--selectively-backpropagate" \
+#         "--alpha=${alpha}" \
+#         "--augmentation-policy-path=./policies/celeba.yaml" \
+#         "--lr-method=plateau"
+# done
 
 # STANDARD TRAINING BASELINES
 

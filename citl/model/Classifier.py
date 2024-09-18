@@ -25,7 +25,7 @@ class Classifier(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="micro"
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.lr = lr
@@ -53,6 +53,19 @@ class Classifier(L.LightningModule):
 
         loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
+        self.accuracy(y_hat, y)
+        self.log("accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
+
         self.log("loss", loss)
         return loss
 
@@ -63,7 +76,17 @@ class Classifier(L.LightningModule):
         val_loss = F.cross_entropy(y_hat, y)
 
         self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy, prog_bar=True)
+        self.log("val_accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
 
         self.log("val_loss", val_loss)
 
@@ -72,7 +95,17 @@ class Classifier(L.LightningModule):
         y_hat = self(x)
 
         self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
+        self.log("test_accuracy", self.accuracy.compute().mean())
+        self.log_dict(
+            dict(
+                zip(
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    self.accuracy.compute().cpu().numpy(),
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
 
         test_loss = F.cross_entropy(y_hat, y)
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
