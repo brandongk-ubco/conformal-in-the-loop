@@ -139,12 +139,12 @@ class CITLSegmenter(L.LightningModule):
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
         accs = self.accuracy(y_hat, y)
-        self.log("accuracy", torch.mean(accs))
+        self.log("accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=True,
@@ -152,12 +152,12 @@ class CITLSegmenter(L.LightningModule):
         )
 
         jacs = self.jaccard(y_hat, y)
-        self.log("jaccard", torch.mean(jacs))
+        self.log("jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=True,
@@ -265,12 +265,12 @@ class CITLSegmenter(L.LightningModule):
             self.log_dict(metrics, prog_bar=True)
 
         accs = self.val_accuracy(y_hat, y)
-        self.log("val_accuracy", torch.mean(accs))
+        self.log("val_accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=False,
@@ -278,19 +278,19 @@ class CITLSegmenter(L.LightningModule):
         )
 
         jacs = self.val_jaccard(y_hat, y)
-        self.log("val_jaccard", torch.mean(jacs))
+        self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
 
-        self.log("val_min_accuracy", accs.min())
+        self.log("val_min_accuracy", torch.min(accs[1:]))
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_start(self) -> None:
@@ -336,12 +336,12 @@ class CITLSegmenter(L.LightningModule):
         plt.close()
 
         accs = self.test_accuracy(y_hat, y)
-        self.log("test_accuracy", torch.mean(accs))
+        self.log("test_accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=False,
@@ -349,12 +349,12 @@ class CITLSegmenter(L.LightningModule):
         )
 
         jacs = self.test_jaccard(y_hat, y)
-        self.log("test_jaccard", torch.mean(jacs))
+        self.log("test_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=False,
