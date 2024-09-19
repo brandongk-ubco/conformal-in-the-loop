@@ -265,7 +265,7 @@ class CITLSegmenter(L.LightningModule):
             self.log_dict(metrics, prog_bar=True)
 
         accs = self.val_accuracy(y_hat, y)
-        self.log("val_accuracy", torch.mean(accs[1:]))
+        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
@@ -275,11 +275,10 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
         )
 
         jacs = self.val_jaccard(y_hat, y)
-        self.log("val_jaccard", torch.mean(jacs[1:]))
+        self.log("val_jaccard", torch.mean(jacs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
@@ -289,7 +288,6 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
