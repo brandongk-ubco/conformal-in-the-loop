@@ -3,7 +3,6 @@
 set -eux
 
 export $(cat .env | xargs)
-unset NEPTUNE_API_TOKEN
 rm -rf lightning_logs
 rm .*.ckpt || true
 
