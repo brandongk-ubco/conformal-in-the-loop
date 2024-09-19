@@ -4,11 +4,14 @@ import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
 import torch.nn.functional as F
+from matplotlib import pyplot as plt
+from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
 from ..losses.FocalLoss import FocalLoss
 from ..losses.TverskyLoss import TverskyLoss
+from ..utils.visualize_segmentation import visualize_segmentation
 
 
 class Segmenter(L.LightningModule):
@@ -20,24 +23,24 @@ class Segmenter(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.val_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
         self.val_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.test_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
         self.test_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.lr = lr
@@ -81,16 +84,31 @@ class Segmenter(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
 
+        if self.current_epoch == 0:
+            img, target = x[1, :, :, :], y[1]
+            if img.ndim > 2:
+                img = img.moveaxis(0, -1)
+            img = img - img.min()
+            img = img / img.max()
+            fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_figure(
+                    "example_image", fig, self.global_step
+                )
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["training/example_image"].append(fig)
+            plt.close()
+
         y_hat = self(x)
         loss = self.loss(y_hat, y)
 
         accs = self.accuracy(y_hat, y)
-        self.log("accuracy", torch.mean(accs[1:]))
+        self.log("accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=True,
@@ -98,12 +116,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.jaccard(y_hat, y)
-        self.log("jaccard", torch.mean(jacs[1:]))
+        self.log("jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    jacs[1:],
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=True,
@@ -124,12 +142,12 @@ class Segmenter(L.LightningModule):
         val_loss = self.loss(y_hat, y)
 
         accs = self.val_accuracy(y_hat, y)
-        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
+        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
@@ -137,12 +155,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.val_jaccard(y_hat, y)
-        self.log("val_jaccard", torch.mean(jacs[1:]))
+        self.log("val_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    jacs[1:],
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,
@@ -162,12 +180,12 @@ class Segmenter(L.LightningModule):
         test_loss = self.loss(y_hat, y)
 
         accs = self.test_accuracy(y_hat, y)
-        self.log("test_accuracy", torch.mean(accs[1:]))
+        self.log("test_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
@@ -175,12 +193,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.test_jaccard(y_hat, y)
-        self.log("test_jaccard", torch.mean(jacs[1:]))
+        self.log("test_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    jacs[1:],
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,
