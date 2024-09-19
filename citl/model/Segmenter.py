@@ -1,18 +1,14 @@
 from statistics import mean
 
-import numpy as np
-import pandas as pd
 import pytorch_lightning as L
-import seaborn as sns
+import segmentation_models_pytorch as smp
 import torch
 import torch.nn.functional as F
-from matplotlib import pyplot as plt
-from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
-from ..ConformalClassifier import ConformalClassifier
-from ..utils.visualize_segmentation import visualize_segmentation
+from ..losses.FocalLoss import FocalLoss
+from ..losses.TverskyLoss import TverskyLoss
 
 
 class Segmenter(L.LightningModule):
@@ -45,8 +41,23 @@ class Segmenter(L.LightningModule):
         )
 
         self.lr = lr
-        self.pixel_dropout = 0.0
         self.lr_method = lr_method
+        self.focal_loss = FocalLoss("multiclass", reduction="mean", from_logits=True)
+        self.tversky_loss = TverskyLoss(from_logits=True)
+
+    def loss(self, y_hat, y):
+        # ground_truths = y.view(-1).long()
+        y_one_hot = F.one_hot(y.view(-1).long(), num_classes=self.num_classes)
+        loss = self.focal_loss(y_hat, y) + self.tversky_loss(y_hat, y_one_hot)
+        # classwise = torch.zeros(
+        #     self.num_classes,
+        #     dtype=loss.dtype,
+        #     device=loss.device,
+        #     requires_grad=loss.requires_grad,
+        # )
+        # classwise = torch.scatter_add(classwise, 0, ground_truths, loss)
+        # classwise /= y.numel()
+        return loss
 
     def forward(self, x):
         if x.dim() == 2:
@@ -71,8 +82,7 @@ class Segmenter(L.LightningModule):
         x, y, _ = batch
 
         y_hat = self(x)
-
-        loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        loss = self.loss(y_hat, y)
 
         accs = self.accuracy(y_hat, y)
         self.log("accuracy", torch.mean(accs[1:]))
@@ -111,9 +121,10 @@ class Segmenter(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        val_loss = self.loss(y_hat, y)
+
         accs = self.val_accuracy(y_hat, y)
-        self.log("val_accuracy", torch.mean(accs[1:]))
+        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
@@ -123,7 +134,6 @@ class Segmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
         )
 
         jacs = self.val_jaccard(y_hat, y)
@@ -137,7 +147,6 @@ class Segmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
-            prog_bar=True,
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
@@ -150,7 +159,7 @@ class Segmenter(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        test_loss = self.loss(y_hat, y)
 
         accs = self.test_accuracy(y_hat, y)
         self.log("test_accuracy", torch.mean(accs[1:]))

@@ -30,23 +30,6 @@ class Cityscapes(BaseDataset):
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, raw_mask = super().__getitem__(index)
 
-        if self.transform is not None:
-            img = self.transform(img)
-
-        img = img.numpy()
-        raw_mask = np.array(raw_mask)
-
-        resize_transform = A.Compose(
-            [
-                A.Resize(512, 1024),
-                ToTensorV2(),
-            ]
-        )
-
-        augmented = resize_transform(image=img.transpose(1, 2, 0), mask=raw_mask)
-        img = augmented["image"]
-        raw_mask = augmented["mask"]
-
         raw_mask = np.array(raw_mask)
         mask = np.zeros_like(raw_mask)
         for k in mapping_20:
@@ -59,6 +42,9 @@ class Cityscapes(BaseDataset):
             augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask)
             img = augmented["image"]
             mask = augmented["mask"]
+
+        if self.transform is not None:
+            img = self.transform(img)
 
         return img, mask, index
 
@@ -135,7 +121,7 @@ class CityscapesDataModule(L.LightningDataModule):
     def __init__(
         self,
         augmentation_policy_path,
-        batch_size: int = 3,
+        batch_size: int = 6,
         train_mode: str = "fine",
         data_dir: str = PATH_DATASETS,
     ):
@@ -149,7 +135,12 @@ class CityscapesDataModule(L.LightningDataModule):
         self.train_mode = train_mode
 
         self.transform = v2.Compose(
-            [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
+            [
+                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
+                v2.Normalize(
+                    mean=[0.2869, 0.3251, 0.2839], std=[0.1865, 0.1906, 0.1872]
+                ),
+            ]
         )
 
     def remove_item(self, index: int) -> None:
@@ -233,7 +224,7 @@ class CityscapesDataModule(L.LightningDataModule):
             self.cityscapes_val,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=self.batch_size,
+            batch_size=1,
             persistent_workers=True,
         )
 
@@ -242,7 +233,7 @@ class CityscapesDataModule(L.LightningDataModule):
             self.cityscapes_test,
             num_workers=os.cpu_count(),
             shuffle=False,
-            batch_size=self.batch_size,
+            batch_size=1,
             persistent_workers=True,
         )
 

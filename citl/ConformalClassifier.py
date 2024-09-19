@@ -44,7 +44,7 @@ class ConformalClassifier:
         self.val_labels = []
 
     def append(self, y_hat, y):
-        
+
         if torch.is_tensor(y_hat):
             y_hat = y_hat.detach()
         if torch.is_tensor(y):
