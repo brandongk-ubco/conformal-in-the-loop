@@ -135,7 +135,7 @@ class CityscapesDataModule(L.LightningDataModule):
     def __init__(
         self,
         augmentation_policy_path,
-        batch_size: int = 4,
+        batch_size: int = 3,
         train_mode: str = "fine",
         data_dir: str = PATH_DATASETS,
     ):
