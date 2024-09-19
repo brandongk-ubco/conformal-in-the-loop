@@ -39,6 +39,20 @@ class CITLSegmenter(L.LightningModule):
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
 
+        self.val_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+        self.val_jaccard = JaccardIndex(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+        self.test_jaccard = JaccardIndex(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+
         self.selectively_backpropagate = selectively_backpropagate
         self.alpha = alpha
         self.val_alpha = val_alpha
@@ -68,6 +82,8 @@ class CITLSegmenter(L.LightningModule):
         self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
 
     def on_train_epoch_start(self) -> None:
+        self.jaccard.reset()
+        self.accuracy.reset()
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.class_weights = dict(
@@ -122,26 +138,26 @@ class CITLSegmenter(L.LightningModule):
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
-        self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=True,
             on_epoch=False,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.jaccard(y_hat, y)
+        self.log("jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=True,
@@ -214,7 +230,8 @@ class CITLSegmenter(L.LightningModule):
         plt.close()
 
     def on_validation_epoch_start(self) -> None:
-        super().on_validation_epoch_start()
+        self.val_jaccard.reset()
+        self.val_accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
             len(self.trainer.datamodule.val_dataloader()) // 5
@@ -247,26 +264,26 @@ class CITLSegmenter(L.LightningModule):
             )
             self.log_dict(metrics, prog_bar=True)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.val_accuracy(y_hat, y)
+        self.log("val_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("val_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.val_jaccard(y_hat, y)
+        self.log("val_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,
@@ -274,6 +291,10 @@ class CITLSegmenter(L.LightningModule):
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_start(self) -> None:
+        self.test_jaccard.reset()
+        self.test_accuracy.reset()
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -313,32 +334,31 @@ class CITLSegmenter(L.LightningModule):
             self.logger.experiment["test/examples"].append(fig)
         plt.close()
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.test_accuracy(y_hat, y)
+        self.log("test_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("test_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.test_jaccard(y_hat, y)
+        self.log("test_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
-
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):

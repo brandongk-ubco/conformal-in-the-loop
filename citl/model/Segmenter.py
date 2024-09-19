@@ -29,6 +29,21 @@ class Segmenter(L.LightningModule):
         self.jaccard = JaccardIndex(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
+
+        self.val_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+        self.val_jaccard = JaccardIndex(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+        self.test_jaccard = JaccardIndex(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
@@ -48,6 +63,10 @@ class Segmenter(L.LightningModule):
 
         return y_hat
 
+    def on_train_epoch_start(self) -> None:
+        self.jaccard.reset()
+        self.accuracy.reset()
+
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
 
@@ -55,26 +74,26 @@ class Segmenter(L.LightningModule):
 
         loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
-        self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=True,
             on_epoch=False,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.jaccard(y_hat, y)
+        self.log("jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=True,
@@ -84,32 +103,35 @@ class Segmenter(L.LightningModule):
         self.log("loss", loss)
         return loss
 
+    def on_validation_epoch_start(self) -> None:
+        self.val_jaccard.reset()
+        self.val_accuracy.reset()
+
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
         val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
-
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.val_accuracy(y_hat, y)
+        self.log("val_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("val_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.val_jaccard(y_hat, y)
+        self.log("val_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,
@@ -118,32 +140,36 @@ class Segmenter(L.LightningModule):
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
+    def on_test_epoch_start(self) -> None:
+        self.test_jaccard.reset()
+        self.test_accuracy.reset()
+
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
         test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.test_accuracy(y_hat, y)
+        self.log("test_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
                 )
             ),
             on_step=False,
             on_epoch=True,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("test_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.test_jaccard(y_hat, y)
+        self.log("test_jaccard", torch.mean(jacs))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes],
+                    jacs,
                 )
             ),
             on_step=False,

@@ -96,8 +96,6 @@ class Classifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
         self.log("val_loss", val_loss)
@@ -118,8 +116,6 @@ class Classifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
         test_loss = F.cross_entropy(y_hat, y)
