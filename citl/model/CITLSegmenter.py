@@ -290,6 +290,7 @@ class CITLSegmenter(L.LightningModule):
             on_epoch=True,
         )
 
+        self.log("val_min_accuracy", accs.min())
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_start(self) -> None:
@@ -384,7 +385,7 @@ class CITLSegmenter(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_accuracy",
+                    "monitor": "val_min_accuracy",
                 }
             ]
 
