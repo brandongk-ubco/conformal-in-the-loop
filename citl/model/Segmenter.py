@@ -123,6 +123,7 @@ class Segmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
+            prog_bar=True,
         )
 
         jacs = self.val_jaccard(y_hat, y)
@@ -136,6 +137,7 @@ class Segmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
+            prog_bar=True,
         )
 
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)

@@ -275,6 +275,7 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
+            prog_bar=True,
         )
 
         jacs = self.val_jaccard(y_hat, y)
@@ -288,9 +289,9 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
+            prog_bar=True,
         )
 
-        self.log("val_min_accuracy", torch.min(accs[1:]))
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_start(self) -> None:
@@ -372,7 +373,7 @@ class CITLSegmenter(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="max",
+                mode="min",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-6,
@@ -385,7 +386,7 @@ class CITLSegmenter(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_min_accuracy",
+                    "monitor": "val_loss",
                 }
             ]
 
