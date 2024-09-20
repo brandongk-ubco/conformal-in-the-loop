@@ -57,7 +57,7 @@ def standardtrain(
             in_channels=3,
             out_channels=20,
             channels=channels,
-            strides=[2] * depth,
+            strides=[2] * (depth-1),
             num_res_units=residual_units,
             act=activation,
             norm=norm,
