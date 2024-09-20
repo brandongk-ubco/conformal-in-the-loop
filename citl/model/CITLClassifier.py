@@ -135,12 +135,15 @@ class CITLClassifier(L.LightningModule):
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss_weights = prediction_set_size
             loss = loss * loss_weights
-            loss = loss.mean()
 
+            y_flt = y.flatten()
+            p_flt = loss_weights.flatten()
             for clazz in range(self.num_classes):
-                class_idxs = y == clazz
-                self.class_counts[clazz] += class_idxs.sum()
-                self.class_weights[clazz] += loss_weights[class_idxs].sum()
+                class_idxs = y_flt == clazz
+                count = class_idxs.sum()
+                weights = p_flt[class_idxs].sum()
+                self.class_counts[clazz] += count
+                self.class_weights[clazz] += weights
 
         loss = loss.mean()
 
