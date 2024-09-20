@@ -17,7 +17,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from pytorch_lightning.tuner import Tuner
 from timm import create_model
 from torch import nn
 
@@ -37,7 +36,6 @@ def train(
     greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
-    control_on_realized: bool = False,
     alpha: float = 0.10,
     lr_method: str = "plateau",
     lr: float = 5e-4,
@@ -55,7 +53,9 @@ def train(
 
     if datamodule.task == "classification":
         net = create_model(
-            model_name, num_classes=datamodule.num_classes, drop_rate=0.2
+            model_name,
+            num_classes=datamodule.num_classes,
+            drop_rate=0.2,
         )
     elif datamodule.task == "segmentation":
         net = smp.Unet(
@@ -89,7 +89,6 @@ def train(
     save_dir = os.path.join(
         "lightning_logs",
         "backprop_uncertain" if selectively_backpropagate else "backprop_all",
-        "control_on_realized" if control_on_realized else "control_on_loss",
         lr_method,
         method,
     )
@@ -116,9 +115,9 @@ def train(
         )
 
     model_callback_config = {
-        "filename": "{epoch}-{val_loss:.3f}",
-        "monitor": "val_loss",
-        "mode": "min",
+        "filename": "{epoch}-{val_accuracy:.3f}",
+        "monitor": "val_accuracy",
+        "mode": "max",
         "save_top_k": 1,
         "save_last": True,
     }
@@ -127,16 +126,12 @@ def train(
             trainer_logger.log_dir, "checkpoints"
         )
 
-    if control_on_realized:
-        model_callback_config["monitor"] = "val_realized"
-        model_callback_config["mode"] = "max"
-
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_realized" if control_on_realized else "val_loss",
-            mode="max" if control_on_realized else "min",
+            monitor="val_loss",
+            mode="min",
             patience=20,
         ),
     ]

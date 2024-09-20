@@ -25,7 +25,13 @@ class Classifier(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="micro"
+            task="multiclass", num_classes=num_classes, average="none"
+        )
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
+        )
+        self.val_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none"
         )
 
         self.lr = lr
@@ -46,6 +52,9 @@ class Classifier(L.LightningModule):
 
         return y_hat
 
+    def on_train_epoch_start(self) -> None:
+        self.accuracy.reset()
+
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
 
@@ -53,8 +62,24 @@ class Classifier(L.LightningModule):
 
         loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs))
+        self.log_dict(
+            dict(
+                zip(
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
+                )
+            ),
+            on_step=True,
+            on_epoch=False,
+        )
+
         self.log("loss", loss)
         return loss
+
+    def on_validation_epoch_start(self) -> None:
+        self.val_accuracy.reset()
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -62,20 +87,45 @@ class Classifier(L.LightningModule):
 
         val_loss = F.cross_entropy(y_hat, y)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy, prog_bar=True)
+        self.val_accuracy.update(y_hat, y)
 
         self.log("val_loss", val_loss)
+
+
+    def on_validation_epoch_end(self):
+        accs = self.val_accuracy.compute()
+        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
+        self.log_dict(
+            dict(
+                zip(
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
+                )
+            ),
+        )
+
+    def on_test_epoch_start(self):
+        self.test_accuracy.reset()
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
-
+        self.test_accuracy.update(y_hat, y)
         test_loss = F.cross_entropy(y_hat, y)
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_end(self):
+        accs = self.test_accuracy.compute()
+        self.log("test_accuracy", torch.mean(accs), prog_bar=True)
+        self.log_dict(
+            dict(
+                zip(
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
+                    accs,
+                )
+            ),
+        )
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

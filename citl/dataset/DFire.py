@@ -76,10 +76,6 @@ class DFireDataModule(L.LightningDataModule):
             [v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])]
         )
 
-    def prepare_data(self):
-        DFire(self.data_dir, train=True)
-        DFire(self.data_dir, train=False)
-
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             dfire_full = DFire(self.data_dir, train=True, transform=self.transform)

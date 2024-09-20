@@ -3,12 +3,30 @@ __version__: 1.1.0
 transform:
   __class_fullname__: Compose
   p: 1
-  transforms: 
+  transforms:
+    - __class_fullname__: RandomScale
+      p: 1
+      scale_limit: 0.1
+    - __class_fullname__: Rotate
+      p: 0.5
+      limit: 10
+    - __class_fullname__: RandomCrop
+      p: 1
+      height: 512
+      width: 1024
     - __class_fullname__: HorizontalFlip
-      p: 0.50
+      p: 0.5
+    - __class_fullname__: OneOf
+      p: 0.25
+      transforms:
+        - __class_fullname__: ImageCompression
+          quality_lower: 90
+        - __class_fullname__: Blur
+        - __class_fullname__: GaussNoise
+    - __class_fullname__: RandomBrightnessContrast
+      p: 0.25
     - __class_fullname__: ToTensorV2
-      p: 1.00
+      p: 1
   bbox_params:
   keypoint_params:
   additional_targets: {}
-  

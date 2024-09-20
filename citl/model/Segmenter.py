@@ -1,17 +1,12 @@
-from statistics import mean
-
-import numpy as np
-import pandas as pd
 import pytorch_lightning as L
-import seaborn as sns
 import torch
-import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
-from ..ConformalClassifier import ConformalClassifier
+# from ..losses.FocalLoss import FocalLoss
+# from ..losses.TverskyLoss import TverskyLoss
 from ..utils.visualize_segmentation import visualize_segmentation
 
 
@@ -19,7 +14,8 @@ class Segmenter(L.LightningModule):
     def __init__(self, model, num_classes, lr=1e-3, lr_method="plateau"):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
-        self.model = model
+
+        self.model = torch.nn.Sequential(torch.nn.InstanceNorm2d(3), model)
 
         self.num_classes = num_classes
 
@@ -27,11 +23,60 @@ class Segmenter(L.LightningModule):
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.jaccard = JaccardIndex(
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
+        )
+
+        self.val_accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
+        self.val_jaccard = JaccardIndex(
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
+        )
+
+        self.test_accuracy = Accuracy(
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+        )
+        self.test_jaccard = JaccardIndex(
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
+        )
+
         self.lr = lr
-        self.pixel_dropout = 0.0
         self.lr_method = lr_method
+        # self.entropy_loss = FocalLoss(
+        #     "multiclass", reduction="none", from_logits=True, ignore_index=0
+        # )
+        self.entropy_loss = torch.nn.CrossEntropyLoss(reduction="none", ignore_index=0)
+        # self.overlap_loss = TverskyLoss(from_logits=True)
+
+    def loss(self, y_hat, y):
+        # num_classes = y_hat.shape[1]
+        # y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
+        # y_one_hot = y_one_hot.permute(0, 3, 1, 2)
+        loss = self.entropy_loss(y_hat, y.long())[y != 0].mean()
+        # loss += self.overlap_loss(
+        #     y_hat[:, 1:, :, :].reshape(-1), y_one_hot[:, 1:, :, :].reshape(-1)
+        # )
+        # classwise = torch.zeros(
+        #     self.num_classes,
+        #     dtype=loss.dtype,
+        #     device=loss.device,
+        #     requires_grad=loss.requires_grad,
+        # )
+        # classwise = torch.scatter_add(classwise, 0, ground_truths, loss)
+        # classwise /= y.numel()
+        return loss
 
     def forward(self, x):
         if x.dim() == 2:
@@ -48,33 +93,51 @@ class Segmenter(L.LightningModule):
 
         return y_hat
 
+    def on_train_epoch_start(self) -> None:
+        self.jaccard.reset()
+        self.accuracy.reset()
+
     def training_step(self, batch, batch_idx):
         x, y, _ = batch
 
+        if self.current_epoch == 0:
+            img, target = x[1, :, :, :], y[1]
+            if img.ndim > 2:
+                img = img.moveaxis(0, -1)
+            img = img - img.min()
+            img = img / img.max()
+            fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_figure(
+                    "example_image", fig, self.global_step
+                )
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["training/example_image"].append(fig)
+            plt.close()
+
         y_hat = self(x)
+        loss = self.loss(y_hat, y)
 
-        loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
-
-        self.accuracy(y_hat, y)
-        self.log("accuracy", self.accuracy.compute()[1:].mean())
+        accs = self.accuracy(y_hat, y)
+        self.log("accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
                     [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    accs[1:],
                 )
             ),
             on_step=True,
             on_epoch=False,
         )
 
-        self.jaccard(y_hat, y)
-        self.log("jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.jaccard(y_hat, y)
+        self.log("jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
                     [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    jacs[1:],
                 )
             ),
             on_step=True,
@@ -84,73 +147,80 @@ class Segmenter(L.LightningModule):
         self.log("loss", loss)
         return loss
 
+    def on_validation_epoch_start(self) -> None:
+        self.val_jaccard.reset()
+        self.val_accuracy.reset()
+
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        val_loss = self.loss(y_hat, y)
 
-        self.accuracy(y_hat, y)
-        self.log("val_accuracy", self.accuracy.compute()[1:].mean())
+        self.val_accuracy.update(y_hat, y)
+        self.val_jaccard.update(y_hat, y)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+
+    def on_validation_epoch_end(self):
+        accs = self.val_accuracy.compute()
+        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    accs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
 
-        self.jaccard(y_hat, y)
-        self.log("val_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.val_jaccard.compute()
+        self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
                     [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    jacs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
 
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+    def on_test_epoch_start(self) -> None:
+        self.test_jaccard.reset()
+        self.test_accuracy.reset()
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        test_loss = self.loss(y_hat, y)
 
-        self.accuracy(y_hat, y)
-        self.log("test_accuracy", self.accuracy.compute()[1:].mean())
+        self.test_accuracy.update(y_hat, y)
+        self.test_jaccard.update(y_hat, y)
+
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_end(self):
+        accs = self.test_accuracy.compute()
+        self.log("test_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.accuracy.compute().cpu().numpy()[1:],
+                    accs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
 
-        self.jaccard(y_hat, y)
-        self.log("test_jaccard", self.jaccard.compute()[1:].mean())
+        jacs = self.test_jaccard.compute()
+        self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    self.jaccard.compute().cpu().numpy()[1:],
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
-
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

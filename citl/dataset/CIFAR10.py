@@ -77,7 +77,9 @@ class CIFAR10DataModule(L.LightningDataModule):
         self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Resize(self.image_size, max_size=self.image_size + 1, antialias=False),
+                v2.Resize(
+                    self.image_size, max_size=self.image_size + 1, antialias=False
+                ),
                 v2.CenterCrop(self.image_size),
             ]
         )
@@ -85,10 +87,6 @@ class CIFAR10DataModule(L.LightningDataModule):
     def remove_item(self, index: int) -> None:
         del self.data[index]
         del self.targets[index]
-
-    def prepare_data(self):
-        CIFAR10(self.data_dir, train=True)
-        CIFAR10(self.data_dir, train=False)
 
     def remove_train_example(self, idx):
         del self.cifar_train.indices[idx]

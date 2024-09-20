@@ -117,7 +117,7 @@ def standardtrain(
 
     trainer = L.Trainer(
         logger=trainer_logger,
-        num_sanity_val_steps=sys.maxsize,
+        num_sanity_val_steps=0,
         max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
