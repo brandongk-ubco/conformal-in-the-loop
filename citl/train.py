@@ -6,7 +6,6 @@ import shutil
 import sys
 import tempfile
 
-import monai
 import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
@@ -18,7 +17,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from pytorch_lightning.tuner import Tuner
 from timm import create_model
 from torch import nn
 
@@ -60,24 +58,10 @@ def train(
             drop_rate=0.2,
         )
     elif datamodule.task == "segmentation":
-        width = 50
-        width_ratio = 1.4
-        activation = monai.networks.layers.factories.Act.LEAKYRELU
-        depth = 4
-        channels = [width] * depth
-        channels = [int(c * width_ratio**i) for i, c in enumerate(channels)]
-        residual_units = 4
-        norm = monai.networks.layers.factories.Norm.BATCH
-
-        net = monai.networks.nets.UNet(
-            dimensions=2,
+        net = smp.Unet(
+            encoder_name=model_name,
             in_channels=3,
-            out_channels=20,
-            channels=channels,
-            strides=[2] * depth,
-            num_res_units=residual_units,
-            act=activation,
-            norm=norm,
+            classes=datamodule.num_classes,
         )
 
     if greyscale:

@@ -28,7 +28,7 @@ class CITLSegmenter(L.LightningModule):
         self.save_hyperparameters(ignore=["model"])
         self.model = model
 
-        self.conformal_classifier = ConformalClassifier(method=method)
+        self.conformal_classifier = ConformalClassifier(method=method, ignore_index=0)
 
         self.num_classes = num_classes
 
@@ -111,6 +111,8 @@ class CITLSegmenter(L.LightningModule):
             img, target = x[1, :, :, :], y[1]
             if img.ndim > 2:
                 img = img.moveaxis(0, -1)
+            img = img - img.min()
+            img = img / img.max()
             fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
             if type(self.trainer.logger) is TensorBoardLogger:
                 self.logger.experiment.add_figure(
@@ -124,7 +126,7 @@ class CITLSegmenter(L.LightningModule):
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
             loss = loss * prediction_set_size
-            loss = loss.mean()
+            loss = loss[y != 0].mean()
 
             y_flt = y.flatten()
             p_flt = prediction_set_size.flatten()
@@ -136,7 +138,7 @@ class CITLSegmenter(L.LightningModule):
                 self.class_weights[clazz] += weights
 
         else:
-            loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+            loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].mean()
 
         accs = self.accuracy(y_hat, y)
         self.log("accuracy", torch.mean(accs[1:]))
@@ -234,17 +236,17 @@ class CITLSegmenter(L.LightningModule):
         self.val_accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
-            len(self.trainer.datamodule.val_dataloader()) // 5
+            len(self.trainer.datamodule.val_dataloader()) // 10
         )
 
     def validation_step(self, batch, batch_idx):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        val_loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].mean()
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
-            self.conformal_classifier.append(y_hat, y)
+            self.conformal_classifier.append(y_hat, y, percentage=0.1)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
             quantiles = self.conformal_classifier.quantiles
@@ -300,7 +302,7 @@ class CITLSegmenter(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y.long(), reduction="none").mean()
+        test_loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].mean()
 
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)

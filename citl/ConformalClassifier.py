@@ -27,23 +27,22 @@ def reduce_correct(example):
     return y_hat[y.int()].bool()
 
 
-def approximate_quantile(x, q, num_samples=1000000):
-    num_samples = min(num_samples, x.numel())
-    samples = x.flatten()[torch.randint(0, x.numel(), (num_samples,))]
-    return torch.quantile(samples, q)
+def approximate_quantile(x, q):
+    return torch.quantile(x, q)
 
 
 class ConformalClassifier:
 
-    def __init__(self, method="score"):
+    def __init__(self, method="score", ignore_index=None):
         self.method = method
         self.reset()
+        self.ignore_index = ignore_index
 
     def reset(self):
         self.cp_examples = []
         self.val_labels = []
 
-    def append(self, y_hat, y):
+    def append(self, y_hat, y, percentage=1.0):
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.detach()
@@ -58,6 +57,17 @@ class ConformalClassifier:
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1)
+
+        num_samples = int(percentage * y.numel())
+        num_samples = min(num_samples, y.numel())
+        sample_idx = torch.randint(0, y.numel(), (num_samples,))
+        y = y.flatten()[sample_idx]
+        y_hat = y_hat[sample_idx, :]
+
+        if self.ignore_index is not None:
+            mask = y != self.ignore_index
+            y = y[mask]
+            y_hat = y_hat[mask]
 
         assert y.ndim == 1
         assert y_hat.ndim == 2

@@ -1,16 +1,12 @@
-from statistics import mean
-
 import pytorch_lightning as L
-import segmentation_models_pytorch as smp
 import torch
-import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
-from ..losses.FocalLoss import FocalLoss
-from ..losses.TverskyLoss import TverskyLoss
+# from ..losses.FocalLoss import FocalLoss
+# from ..losses.TverskyLoss import TverskyLoss
 from ..utils.visualize_segmentation import visualize_segmentation
 
 
@@ -19,8 +15,7 @@ class Segmenter(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
 
-        self.model = torch.nn.Sequential(
-            torch.nn.InstanceNorm2d(3), model)
+        self.model = torch.nn.Sequential(torch.nn.InstanceNorm2d(3), model)
 
         self.num_classes = num_classes
 
@@ -47,18 +42,20 @@ class Segmenter(L.LightningModule):
 
         self.lr = lr
         self.lr_method = lr_method
-        self.focal_loss = FocalLoss(
-            "multiclass", reduction="mean", from_logits=True, ignore_index=0
-        )
-        self.tversky_loss = TverskyLoss(from_logits=True)
+        # self.entropy_loss = FocalLoss(
+        #     "multiclass", reduction="none", from_logits=True, ignore_index=0
+        # )
+        self.entropy_loss = torch.nn.CrossEntropyLoss(reduction="none", ignore_index=0)
+        # self.overlap_loss = TverskyLoss(from_logits=True)
 
     def loss(self, y_hat, y):
-        num_classes = y_hat.shape[1]
-        y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
-        y_one_hot = y_one_hot.permute(0, 3, 1, 2)
-        loss = self.focal_loss(y_hat, y) + self.tversky_loss(
-            y_hat[:, 1:, :, :].reshape(-1), y_one_hot[:, 1:, :, :].reshape(-1)
-        )
+        # num_classes = y_hat.shape[1]
+        # y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
+        # y_one_hot = y_one_hot.permute(0, 3, 1, 2)
+        loss = self.entropy_loss(y_hat, y.long())[y != 0].mean()
+        # loss += self.overlap_loss(
+        #     y_hat[:, 1:, :, :].reshape(-1), y_one_hot[:, 1:, :, :].reshape(-1)
+        # )
         # classwise = torch.zeros(
         #     self.num_classes,
         #     dtype=loss.dtype,

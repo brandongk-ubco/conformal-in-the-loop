@@ -136,7 +136,9 @@ class CityscapesDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.train_mode = train_mode
 
-        self.transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
+        self.transform = v2.Compose(
+            [v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]
+        )
 
     def remove_item(self, index: int) -> None:
         del self.data[index]

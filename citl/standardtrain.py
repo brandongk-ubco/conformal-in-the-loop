@@ -1,7 +1,6 @@
 import os
 import sys
 
-import monai
 import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
