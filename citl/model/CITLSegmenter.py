@@ -125,15 +125,17 @@ class CITLSegmenter(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
-            loss = loss * prediction_set_size
+
+            loss_weights = prediction_set_size
+            loss = loss * loss_weights
             loss = loss[y != 0].mean()
 
             y_flt = y.flatten()
-            p_flt = prediction_set_size.flatten()
+            l_flt = loss_weights.flatten()
             for clazz in range(1, self.num_classes):
                 class_idxs = y_flt == clazz
                 count = class_idxs.sum()
-                weights = p_flt[class_idxs].sum()
+                weights = l_flt[class_idxs].sum()
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
 
