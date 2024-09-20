@@ -135,9 +135,9 @@ class CITLClassifier(L.LightningModule):
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss_weights = prediction_set_size
             loss = loss * loss_weights
-            loss = loss[y != 0].mean()
+            loss = loss_weights.mean()
 
-            for clazz in range(1, self.num_classes):
+            for clazz in range(self.num_classes):
                 class_idxs = y == clazz
                 count = class_idxs.sum()
                 weights = loss_weights[class_idxs].sum()
