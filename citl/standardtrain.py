@@ -43,24 +43,10 @@ def standardtrain(
             model_name, num_classes=datamodule.num_classes, drop_rate=0.2
         )
     elif datamodule.task == "segmentation":
-        width = 50
-        width_ratio = 1.4
-        activation = monai.networks.layers.factories.Act.LEAKYRELU
-        depth = 8
-        channels = [width] * depth
-        channels = [int(c * width_ratio**i) for i, c in enumerate(channels)]
-        residual_units = 4
-        norm = monai.networks.layers.factories.Norm.BATCH
-
-        net = monai.networks.nets.UNet(
-            spatial_dims=2,
+        net = smp.Unet(
+            encoder_name=model_name,
             in_channels=3,
-            out_channels=20,
-            channels=channels,
-            strides=[2] * (depth-1),
-            num_res_units=residual_units,
-            act=activation,
-            norm=norm,
+            classes=datamodule.num_classes,
         )
 
     if greyscale:
@@ -132,7 +118,7 @@ def standardtrain(
 
     trainer = L.Trainer(
         logger=trainer_logger,
-        num_sanity_val_steps=sys.maxsize,
+        num_sanity_val_steps=0,
         max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,

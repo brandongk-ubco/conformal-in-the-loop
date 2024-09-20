@@ -18,7 +18,9 @@ class Segmenter(L.LightningModule):
     def __init__(self, model, num_classes, lr=1e-3, lr_method="plateau"):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
-        self.model = model
+
+        self.model = torch.nn.Sequential(
+            torch.nn.InstanceNorm2d(3), model)
 
         self.num_classes = num_classes
 

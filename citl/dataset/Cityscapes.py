@@ -123,7 +123,7 @@ class CityscapesDataModule(L.LightningDataModule):
     def __init__(
         self,
         augmentation_policy_path,
-        batch_size: int = 2,
+        batch_size: int = 3,
         train_mode: str = "fine",
         data_dir: str = PATH_DATASETS,
     ):
@@ -136,14 +136,7 @@ class CityscapesDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.train_mode = train_mode
 
-        self.transform = v2.Compose(
-            [
-                v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Normalize(
-                    mean=[0.2869, 0.3251, 0.2839], std=[0.1865, 0.1906, 0.1872]
-                ),
-            ]
-        )
+        self.transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
 
     def remove_item(self, index: int) -> None:
         del self.data[index]
