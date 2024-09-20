@@ -130,7 +130,7 @@ class CITLSegmenter(L.LightningModule):
 
             y_flt = y.flatten()
             p_flt = prediction_set_size.flatten()
-            for clazz in range(self.num_classes):
+            for clazz in range(1, self.num_classes):
                 class_idxs = y_flt == clazz
                 count = class_idxs.sum()
                 weights = p_flt[class_idxs].sum()
@@ -174,7 +174,7 @@ class CITLSegmenter(L.LightningModule):
 
         weights = {}
 
-        for k in range(self.num_classes):
+        for k in range(1, self.num_classes):
             label = self.trainer.datamodule.classes[k]
             weight = float(self.class_weights[k] / self.class_counts[k])
             weights[label] = weight
