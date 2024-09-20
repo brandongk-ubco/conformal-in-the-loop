@@ -1,6 +1,7 @@
 import os
 import sys
 
+import monai
 import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
@@ -42,10 +43,24 @@ def standardtrain(
             model_name, num_classes=datamodule.num_classes, drop_rate=0.2
         )
     elif datamodule.task == "segmentation":
-        net = smp.Unet(
-            encoder_name=model_name,
+        width = 50
+        width_ratio = 1.4
+        activation = monai.networks.layers.factories.Act.LEAKYRELU
+        depth = 8
+        channels = [width] * depth
+        channels = [int(c * width_ratio**i) for i, c in enumerate(channels)]
+        residual_units = 4
+        norm = monai.networks.layers.factories.Norm.BATCH
+
+        net = monai.networks.nets.UNet(
+            spatial_dims=2,
             in_channels=3,
-            classes=datamodule.num_classes,
+            out_channels=20,
+            channels=channels,
+            strides=[2] * depth,
+            num_res_units=residual_units,
+            act=activation,
+            norm=norm,
         )
 
     if greyscale:

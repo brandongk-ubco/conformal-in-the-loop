@@ -23,35 +23,40 @@ class Segmenter(L.LightningModule):
         self.num_classes = num_classes
 
         self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
 
         self.val_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.val_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
 
         self.test_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.test_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none"
+            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
 
         self.lr = lr
         self.lr_method = lr_method
-        self.focal_loss = FocalLoss("multiclass", reduction="mean", from_logits=True)
+        self.focal_loss = FocalLoss(
+            "multiclass", reduction="mean", from_logits=True, ignore_index=0
+        )
         self.tversky_loss = TverskyLoss(from_logits=True)
 
     def loss(self, y_hat, y):
-        # ground_truths = y.view(-1).long()
-        y_one_hot = F.one_hot(y.view(-1).long(), num_classes=self.num_classes)
-        loss = self.focal_loss(y_hat, y) + self.tversky_loss(y_hat, y_one_hot)
+        num_classes = y_hat.shape[1]
+        y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
+        y_one_hot = y_one_hot.permute(0, 3, 1, 2)
+        loss = self.focal_loss(y_hat, y) + self.tversky_loss(
+            y_hat[:, 1:, :, :].reshape(-1), y_one_hot[:, 1:, :, :].reshape(-1)
+        )
         # classwise = torch.zeros(
         #     self.num_classes,
         #     dtype=loss.dtype,
@@ -103,12 +108,12 @@ class Segmenter(L.LightningModule):
         loss = self.loss(y_hat, y)
 
         accs = self.accuracy(y_hat, y)
-        self.log("accuracy", torch.mean(accs))
+        self.log("accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=True,
@@ -116,12 +121,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.jaccard(y_hat, y)
-        self.log("jaccard", torch.mean(jacs))
+        self.log("jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=True,
@@ -142,12 +147,12 @@ class Segmenter(L.LightningModule):
         val_loss = self.loss(y_hat, y)
 
         accs = self.val_accuracy(y_hat, y)
-        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
+        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=False,
@@ -155,12 +160,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.val_jaccard(y_hat, y)
-        self.log("val_jaccard", torch.mean(jacs))
+        self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=False,
@@ -180,12 +185,12 @@ class Segmenter(L.LightningModule):
         test_loss = self.loss(y_hat, y)
 
         accs = self.test_accuracy(y_hat, y)
-        self.log("test_accuracy", torch.mean(accs))
+        self.log("test_accuracy", torch.mean(accs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes],
-                    accs,
+                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    accs[1:],
                 )
             ),
             on_step=False,
@@ -193,12 +198,12 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.test_jaccard(y_hat, y)
-        self.log("test_jaccard", torch.mean(jacs))
+        self.log("test_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes],
-                    jacs,
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    jacs[1:],
                 )
             ),
             on_step=False,

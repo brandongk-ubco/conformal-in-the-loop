@@ -39,7 +39,9 @@ class Cityscapes(BaseDataset):
             mask[raw_mask == k] = target
 
         if self.augment_indices[index]:
-            augmented = self.augments(image=img.numpy().transpose(1, 2, 0), mask=mask)
+            augmented = self.augments(
+                image=(img.numpy().transpose(1, 2, 0) * 255).astype(np.uint8), mask=mask
+            )
             img = augmented["image"]
             mask = augmented["mask"]
 
@@ -121,7 +123,7 @@ class CityscapesDataModule(L.LightningDataModule):
     def __init__(
         self,
         augmentation_policy_path,
-        batch_size: int = 6,
+        batch_size: int = 3,
         train_mode: str = "fine",
         data_dir: str = PATH_DATASETS,
     ):
