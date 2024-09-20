@@ -71,8 +71,6 @@ class Classifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
         self.log("loss", loss)
@@ -117,7 +115,7 @@ class Classifier(L.LightningModule):
 
     def on_test_epoch_end(self):
         accs = self.test_accuracy.compute()
-        self.log("test_accuracy", torch.mean(accs), prog_bar=True)
+        self.log("test_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(

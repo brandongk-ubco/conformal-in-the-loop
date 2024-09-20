@@ -135,7 +135,7 @@ class CITLClassifier(L.LightningModule):
             loss = F.cross_entropy(y_hat, y, reduction="none")
             loss_weights = prediction_set_size
             loss = loss * loss_weights
-            loss = loss_weights.mean()
+            loss = loss.mean()
 
             for clazz in range(self.num_classes):
                 class_idxs = y == clazz
@@ -156,8 +156,6 @@ class CITLClassifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
         self.log("loss", loss)
@@ -291,7 +289,7 @@ class CITLClassifier(L.LightningModule):
             )
             self.log_dict(metrics, prog_bar=True)
 
-        self.accuracy.update(y_hat, y)
+        self.val_accuracy.update(y_hat, y)
         self.log("val_loss", val_loss)
 
     def on_validation_epoch_end(self):
@@ -304,8 +302,6 @@ class CITLClassifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
     # def test_step(self, batch, batch_idx):
@@ -413,7 +409,7 @@ class CITLClassifier(L.LightningModule):
         self.test_results = []
 
         accs = self.test_accuracy.compute()
-        self.log("test_accuracy", torch.mean(accs), prog_bar=True)
+        self.log("test_accuracy", torch.mean(accs))
         self.log_dict(
             dict(
                 zip(
@@ -421,8 +417,6 @@ class CITLClassifier(L.LightningModule):
                     accs,
                 )
             ),
-            on_step=True,
-            on_epoch=False,
         )
 
     def configure_optimizers(self):
