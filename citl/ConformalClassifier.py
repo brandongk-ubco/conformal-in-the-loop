@@ -42,7 +42,7 @@ class ConformalClassifier:
         self.cp_examples = []
         self.val_labels = []
 
-    def append(self, y_hat, y, percentage=1.0):
+    def append(self, y_hat, y, percentage=1.0, skip_ignore=False):
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.detach()
@@ -64,7 +64,7 @@ class ConformalClassifier:
         y = y.flatten()[sample_idx]
         y_hat = y_hat[sample_idx, :]
 
-        if self.ignore_index is not None:
+        if not skip_ignore and self.ignore_index is not None:
             mask = y != self.ignore_index
             y = y[mask]
             y_hat = y_hat[mask]

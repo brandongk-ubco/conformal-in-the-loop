@@ -99,10 +99,10 @@ class CITLSegmenter(L.LightningModule):
         y_hat = self(x)
 
         self.conformal_classifier.reset()
-        self.conformal_classifier.append(y_hat, y)
+        self.conformal_classifier.append(y_hat, y, skip_ignore=True)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(alpha=self.alpha)
 
-        metrics = dict([(k, v.float().mean()) for k, v in uncertainty.items()])
+        metrics = dict([(k, v.float().reshape(y.shape)[y!=0].mean()) for k, v in uncertainty.items()])
         self.log_dict(
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
@@ -126,19 +126,20 @@ class CITLSegmenter(L.LightningModule):
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
 
+            # num_classes = y_hat.shape[1]
+            # y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
+            # y_one_hot = y_one_hot.permute(0, 3, 1, 2)
+
             loss_weights = prediction_set_size
             loss = loss * loss_weights
             loss = loss[y != 0].mean()
 
-            y_flt = y.flatten()
-            l_flt = loss_weights.flatten()
             for clazz in range(1, self.num_classes):
-                class_idxs = y_flt == clazz
+                class_idxs = y == clazz
                 count = class_idxs.sum()
-                weights = l_flt[class_idxs].sum()
+                weights = loss_weights[class_idxs].sum()
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
-
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].mean()
 
