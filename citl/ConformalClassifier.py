@@ -60,7 +60,8 @@ class ConformalClassifier:
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1)
 
-        y_hat, y = sample_tensors(y_hat, y, percentage)
+        if percentage < 1.0:
+            y_hat, y = sample_tensors(y_hat, y, percentage)
 
         if not skip_ignore and self.ignore_index is not None:
             mask = y != self.ignore_index
