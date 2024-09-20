@@ -23,21 +23,33 @@ class Segmenter(L.LightningModule):
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.val_accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.val_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.test_accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.test_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.lr = lr
@@ -145,7 +157,12 @@ class Segmenter(L.LightningModule):
 
         val_loss = self.loss(y_hat, y)
 
-        accs = self.val_accuracy(y_hat, y)
+        self.val_accuracy.update(y_hat, y)
+        self.val_jaccard.update(y_hat, y)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+
+    def on_validation_epoch_end(self):
+        accs = self.val_accuracy.compute()
         self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
@@ -153,12 +170,10 @@ class Segmenter(L.LightningModule):
                     [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
                     accs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
 
-        jacs = self.val_jaccard(y_hat, y)
+        jacs = self.val_jaccard.compute()
         self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
@@ -166,12 +181,8 @@ class Segmenter(L.LightningModule):
                     [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
                     jacs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
-
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_start(self) -> None:
         self.test_jaccard.reset()
@@ -183,33 +194,33 @@ class Segmenter(L.LightningModule):
 
         test_loss = self.loss(y_hat, y)
 
-        accs = self.test_accuracy(y_hat, y)
-        self.log("test_accuracy", torch.mean(accs[1:]))
+        self.test_accuracy.update(y_hat, y)
+        self.test_jaccard.update(y_hat, y)
+
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_end(self):
+        accs = self.test_accuracy.compute()
+        self.log("test_accuracy", torch.mean(accs[1:]), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
                     accs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
 
-        jacs = self.test_jaccard(y_hat, y)
-        self.log("test_jaccard", torch.mean(jacs[1:]))
+        jacs = self.test_jaccard.compute()
+        self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
                     jacs[1:],
                 )
-            ),
-            on_step=False,
-            on_epoch=True,
+            )
         )
-
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

@@ -102,7 +102,12 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier.append(y_hat, y, skip_ignore=True)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(alpha=self.alpha)
 
-        metrics = dict([(k, v.float().reshape(y.shape)[y!=0].mean()) for k, v in uncertainty.items()])
+        metrics = dict(
+            [
+                (k, v.float().reshape(y.shape)[y != 0].mean())
+                for k, v in uncertainty.items()
+            ]
+        )
         self.log_dict(
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
