@@ -130,11 +130,6 @@ class CITLSegmenter(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")
-
-            # num_classes = y_hat.shape[1]
-            # y_one_hot = F.one_hot(y.long(), num_classes=num_classes)
-            # y_one_hot = y_one_hot.permute(0, 3, 1, 2)
-
             loss_weights = prediction_set_size
             loss = loss * loss_weights
             loss = loss[y != 0].mean()

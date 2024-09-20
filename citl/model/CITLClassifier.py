@@ -131,29 +131,19 @@ class CITLClassifier(L.LightningModule):
                     self.examples_without_uncertainty[idx] = 1
 
         if self.selectively_backpropagate:
-            prediction_set_size = uncertainty["prediction_set_size"]
+            prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss = F.cross_entropy(y_hat, y, reduction="none")
-
-            y_flt = y.flatten()
-            # confusion_weights = torch.ones_like(loss)
-
-            # max_probability = y_hat.softmax(dim=1).max(dim=1).values
-            # quantile = self.conformal_classifier.quantiles[self.alpha]
-
-            # confusion_weights_unfiltered = 4 * (torch.exp(-max_probability-quantile)) - math.exp(-2)) / (1 - math.exp(-2))
-            # confusion_weights[uncertainty["confused"]] = confusion_weights_unfiltered[uncertainty["confused"]]
-
             loss_weights = prediction_set_size
+            loss = loss * loss_weights
+            loss = loss[y != 0].mean()
 
-            for clazz in range(self.num_classes):
-                class_idxs = y_flt == clazz
+            for clazz in range(1, self.num_classes):
+                class_idxs = y == clazz
                 count = class_idxs.sum()
                 weights = loss_weights[class_idxs].sum()
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
 
-            loss = loss * loss_weights
-            loss = loss.mean()
         else:
             loss = F.cross_entropy(y_hat, y, reduction="none").mean()
 
@@ -301,7 +291,11 @@ class CITLClassifier(L.LightningModule):
             )
             self.log_dict(metrics, prog_bar=True)
 
-        accs = self.val_accuracy(y_hat, y)
+        self.accuracy.update(y_hat, y)
+        self.log("val_loss", val_loss)
+
+    def on_validation_epoch_end(self):
+        accs = self.val_accuracy.compute()
         self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
@@ -313,8 +307,6 @@ class CITLClassifier(L.LightningModule):
             on_step=True,
             on_epoch=False,
         )
-        self.log("val_min_accuracy", torch.min(accs))
-        self.log("val_loss", val_loss)
 
     # def test_step(self, batch, batch_idx):
     #     x, y, _ = batch
@@ -412,7 +404,15 @@ class CITLClassifier(L.LightningModule):
                 }
             )
 
-        accs = self.test_accuracy(y_hat, y)
+        self.test_accuracy.update(y_hat, y)
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_end(self):
+        df = pd.DataFrame(self.test_results)
+        df.to_csv("test_results.csv", index=False)
+        self.test_results = []
+
+        accs = self.test_accuracy.compute()
         self.log("test_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
@@ -425,13 +425,6 @@ class CITLClassifier(L.LightningModule):
             on_epoch=False,
         )
 
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
-
-    def on_test_epoch_end(self):
-        df = pd.DataFrame(self.test_results)
-        df.to_csv("test_results.csv", index=False)
-        self.test_results = []
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(), lr=self.lr, weight_decay=self.lr * 0.1
@@ -442,7 +435,7 @@ class CITLClassifier(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="max",
+                mode="min",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-6,
@@ -455,7 +448,7 @@ class CITLClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_min_accuracy",
+                    "monitor": "val_loss",
                 }
             ]
 

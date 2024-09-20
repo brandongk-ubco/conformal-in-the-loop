@@ -87,7 +87,13 @@ class Classifier(L.LightningModule):
 
         val_loss = F.cross_entropy(y_hat, y)
 
-        accs = self.val_accuracy(y_hat, y)
+        self.val_accuracy.update(y_hat, y)
+
+        self.log("val_loss", val_loss)
+
+
+    def on_validation_epoch_end(self):
+        accs = self.val_accuracy.compute()
         self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
@@ -98,8 +104,6 @@ class Classifier(L.LightningModule):
             ),
         )
 
-        self.log("val_loss", val_loss)
-
     def on_test_epoch_start(self):
         self.test_accuracy.reset()
 
@@ -107,7 +111,12 @@ class Classifier(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        accs = self.test_accuracy(y_hat, y)
+        self.test_accuracy.update(y_hat, y)
+        test_loss = F.cross_entropy(y_hat, y)
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+
+    def on_test_epoch_end(self):
+        accs = self.test_accuracy.compute()
         self.log("test_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
@@ -117,9 +126,6 @@ class Classifier(L.LightningModule):
                 )
             ),
         )
-
-        test_loss = F.cross_entropy(y_hat, y)
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
