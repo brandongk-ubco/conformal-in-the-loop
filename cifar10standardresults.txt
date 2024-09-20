@@ -1,0 +1,45 @@
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃         Test metric         ┃        DataLoader 0         ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│        test_accuracy        │     0.7544920444488525      │
+│    test_accuracy_bicycle    │     0.8420129418373108      │
+│   test_accuracy_building    │     0.9610257744789124      │
+│      test_accuracy_bus      │     0.7513378858566284      │
+│      test_accuracy_car      │     0.9717246890068054      │
+│     test_accuracy_fence     │     0.5234373211860657      │
+│  test_accuracy_motorcycle   │     0.4658966362476349      │
+│    test_accuracy_person     │      0.883927047252655      │
+│     test_accuracy_pole      │     0.6932547688484192      │
+│     test_accuracy_rider     │     0.6846794486045837      │
+│     test_accuracy_road      │     0.9865803718566895      │
+│   test_accuracy_sidewalk    │     0.8921982645988464      │
+│      test_accuracy_sky      │     0.9737330079078674      │
+│    test_accuracy_terrain    │      0.63606196641922       │
+│ test_accuracy_traffic light │     0.6840521097183228      │
+│ test_accuracy_traffic sign  │      0.796523928642273      │
+│     test_accuracy_train     │     0.6818197965621948      │
+│     test_accuracy_truck     │     0.5178278088569641      │
+│  test_accuracy_vegetation   │      0.958272397518158      │
+│     test_accuracy_wall      │     0.4309830665588379      │
+│          test_loss          │     0.17094513773918152     │
+│         val_jaccard         │     0.6677262783050537      │
+│     val_jaccard_bicycle     │     0.7079976797103882      │
+│    val_jaccard_building     │     0.8975709080696106      │
+│       val_jaccard_bus       │     0.6780818104743958      │
+│       val_jaccard_car       │      0.921824038028717      │
+│      val_jaccard_fence      │     0.4439966082572937      │
+│   val_jaccard_motorcycle    │     0.3589242696762085      │
+│     val_jaccard_person      │     0.7667940855026245      │
+│      val_jaccard_pole       │     0.5842573642730713      │
+│      val_jaccard_rider      │     0.5173314809799194      │
+│      val_jaccard_road       │      0.973824679851532      │
+│    val_jaccard_sidewalk     │      0.799077570438385      │
+│       val_jaccard_sky       │     0.9327311515808105      │
+│     val_jaccard_terrain     │      0.563854455947876      │
+│  val_jaccard_traffic light  │     0.5797803401947021      │
+│  val_jaccard_traffic sign   │     0.7222270965576172      │
+│      val_jaccard_train      │      0.522552490234375      │
+│      val_jaccard_truck      │     0.43922170996665955     │
+│   val_jaccard_vegetation    │     0.9133729934692383      │
+│      val_jaccard_wall       │      0.363378643989563      │
+└─────────────────────────────┴─────────────────────────────┘

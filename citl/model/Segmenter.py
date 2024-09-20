@@ -212,11 +212,11 @@ class Segmenter(L.LightningModule):
         )
 
         jacs = self.test_jaccard.compute()
-        self.log("val_jaccard", torch.mean(jacs[1:]))
+        self.log("test_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
             dict(
                 zip(
-                    [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
+                    [f"test_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
                     jacs[1:],
                 )
             )
