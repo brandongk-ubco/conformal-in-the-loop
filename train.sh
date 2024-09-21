@@ -8,10 +8,10 @@ unset NEPTUNE_API_TOKEN
 rm -rf lightning_logs
 rm .*.ckpt || true
 
-python -m citl train CelebA resnet18 \
-    "--selectively-backpropagate" \
-    "--augmentation-policy-path=./policies/celeba.yaml" \
-    "--lr-method=plateau"
+# python -m citl train CelebA resnet18 \
+#     "--selectively-backpropagate" \
+#     "--augmentation-policy-path=./policies/celeba.yaml" \
+#     "--lr-method=plateau"
 
 # STANDARD TRAINING BASELINES
 
@@ -19,9 +19,9 @@ python -m citl train CelebA resnet18 \
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
 #     "--lr-method=plateau"
 
-# python -m citl standardtrain CIFAR10 mnasnet_small \
-#     "--augmentation-policy-path=./policies/cifar10.yaml" \
-#     "--lr-method=plateau"
+python -m citl standardtrain CIFAR10UB mnasnet_small \
+    "--augmentation-policy-path=./policies/cifar10.yaml" \
+    "--lr-method=plateau"
 
 # python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
