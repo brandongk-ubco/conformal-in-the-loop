@@ -1,5 +1,6 @@
 torchvision
 albumentations
+albucore==0.0.16
 timm
 torch-tb-profiler
 typer

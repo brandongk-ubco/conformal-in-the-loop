@@ -89,7 +89,6 @@ class Classifier(L.LightningModule):
 
         self.log("val_loss", val_loss)
 
-
     def on_validation_epoch_end(self):
         accs = self.val_accuracy.compute()
         self.log("val_accuracy", torch.mean(accs), prog_bar=True)

@@ -39,8 +39,6 @@ class TestConformalClassifier:
 
         cc = ConformalClassifier()
         cc.append(y_hat, y, percentage=0.5)
-        import pdb
-        pdb.set_trace()
         assert len(torch.concatenate(cc.cp_examples, axis=0)) == 128
         assert len(torch.concatenate(cc.val_labels, axis=0)) == 128
         cc.fit()

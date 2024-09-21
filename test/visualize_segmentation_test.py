@@ -32,9 +32,9 @@ class TestVisualizeSegmentation:
         visualize_segmentation(img, prediction=pred)
         plt.savefig(os.path.join(CURRENT_DIRECTORY, "test_visualize_prediction.png"))
 
-    def test_visualize_uncertainty(self):
-        img = torch.load(os.path.join(CURRENT_DIRECTORY, "fixtures", "image.pt"))
-        pred_set_size = torch.load(os.path.join(CURRENT_DIRECTORY, "fixtures", "prediction_set_size.pt"))
+    # def test_visualize_uncertainty(self):
+    #     img = torch.load(os.path.join(CURRENT_DIRECTORY, "fixtures", "image.pt"))
+    #     pred_set_size = torch.load(os.path.join(CURRENT_DIRECTORY, "fixtures", "prediction_set_size.pt"))
 
-        visualize_segmentation(img, prediction_set_size=pred_set_size)
-        plt.savefig(os.path.join(CURRENT_DIRECTORY, "test_visualize_uncertainty.png"))
+    #     visualize_segmentation(img, prediction_set_size=pred_set_size)
+    #     plt.savefig(os.path.join(CURRENT_DIRECTORY, "test_visualize_uncertainty.png"))

@@ -130,22 +130,22 @@ class CITLClassifier(L.LightningModule):
                 else:
                     self.examples_without_uncertainty[idx] = 1
 
+        loss = F.cross_entropy(y_hat, y, reduction="none")
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
-            loss = F.cross_entropy(y_hat, y, reduction="none")
             loss_weights = prediction_set_size
             loss = loss * loss_weights
-            loss = loss.mean()
 
+            y_flt = y.flatten()
+            p_flt = loss_weights.flatten()
             for clazz in range(self.num_classes):
-                class_idxs = y == clazz
+                class_idxs = y_flt == clazz
                 count = class_idxs.sum()
-                weights = loss_weights[class_idxs].sum()
+                weights = p_flt[class_idxs].sum()
                 self.class_counts[clazz] += count
                 self.class_weights[clazz] += weights
 
-        else:
-            loss = F.cross_entropy(y_hat, y, reduction="none").mean()
+        loss = loss.mean()
 
         accs = self.accuracy(y_hat, y)
         self.log("accuracy", torch.mean(accs))
@@ -162,38 +162,6 @@ class CITLClassifier(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self) -> None:
-        num_bins = max(21, self.current_epoch + 1)
-        bins = np.arange(0, num_bins)
-        plt.figure()
-        sns_plot = sns.histplot(
-            data=self.examples_without_uncertainty,
-            stat="percent",
-            bins=bins,
-        )
-
-        sns_plot.set_title(
-            f"Epochs without uncertainty for training examples (epoch: {self.current_epoch + 1})"
-        )
-        sns_plot.set_xlabel(
-            f"Number of epochs without uncertainty (mean: {mean([v for k,v in self.examples_without_uncertainty.items()]):.2f})"
-        )
-        sns_plot.set_xticks(bins[:-1] + 0.5)
-        sns_plot.set_xticklabels(bins[:-1], rotation=90)
-        sns_plot.set_ylabel("Percentage of examples")
-        sns_plot.set_ylim(0, 100)
-
-        if type(self.trainer.logger) is TensorBoardLogger:
-            self.logger.experiment.add_figure(
-                "examples_without_uncertainty",
-                sns_plot.get_figure(),
-                self.global_step,
-            )
-        elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["training/examples_without_uncertainty"].append(
-                sns_plot.get_figure()
-            )
-        plt.close()
-
         plt.figure()
 
         weights = {}

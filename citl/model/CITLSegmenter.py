@@ -36,21 +36,33 @@ class CITLSegmenter(L.LightningModule):
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0, zero_division=1.0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.val_accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.val_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0, zero_division=1.0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.test_accuracy = Accuracy(
             task="multiclass", num_classes=num_classes, average="none", ignore_index=0
         )
         self.test_jaccard = JaccardIndex(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0, zero_division=1.0
+            task="multiclass",
+            num_classes=num_classes,
+            average="none",
+            ignore_index=0,
+            zero_division=1.0,
         )
 
         self.selectively_backpropagate = selectively_backpropagate

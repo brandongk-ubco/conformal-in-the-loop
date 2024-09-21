@@ -2,6 +2,8 @@ from functools import partial
 
 import torch
 
+from .utils import sample_tensors
+
 
 def lac(y_hat, y):
     return 1 - y_hat[y.int()]
@@ -58,11 +60,8 @@ class ConformalClassifier:
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1)
 
-        num_samples = int(percentage * y.numel())
-        num_samples = min(num_samples, y.numel())
-        sample_idx = torch.randint(0, y.numel(), (num_samples,))
-        y = y.flatten()[sample_idx]
-        y_hat = y_hat[sample_idx, :]
+        if percentage < 1.0:
+            y_hat, y = sample_tensors(y_hat, y, percentage)
 
         if not skip_ignore and self.ignore_index is not None:
             mask = y != self.ignore_index
