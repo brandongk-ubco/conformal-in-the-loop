@@ -20,7 +20,7 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 class BaseDataset(VisionDataset):
     base_folder = "celeba"
 
-    def __init__(self, root, split="train", target_type="attr", transform=None, target_transform=None, target_attr="Attractive", labelwise=False):
+    def __init__(self, root, split="train", target_type="attr", transform=None, target_transform=None, target_attr="Wavy_Hair", labelwise=False):
         super().__init__(root, transform=transform, target_transform=target_transform)
         
         self.split = split
@@ -156,7 +156,7 @@ class CelebADataModule(L.LightningDataModule):
         task = "classification"
     
     
-        def __init__(self, augmentation_policy_path, batch_size=128, data_dir=PATH_DATASETS, image_size=224):
+        def __init__(self, batch_size=128, data_dir=PATH_DATASETS, image_size=176):
             super().__init__()
             assert os.path.exists(augmentation_policy_path)
             self.augments = A.load(augmentation_policy_path, data_format="yaml")
@@ -165,12 +165,15 @@ class CelebADataModule(L.LightningDataModule):
             self.data_dir = data_dir
             self.image_size = image_size
             self.num_classes = 2
-            
-            self.transform = transforms.Compose([
-                transforms.Resize((self.image_size, self.image_size)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-            ])
+            self.transform = A.Compose(
+                [
+                A.HorizontalFlip(p=0.5),
+                A.CropAndPad(px=(0, 56), p=1.0),
+                A.CoarseDropout(max_holes=1, max_height=56, max_width=56, p=1.0),
+                ToTensorV2(p=1.0),
+                A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], p=1.0)
+            ]
+            )
         
 
         def prepare_data(self):
@@ -188,7 +191,7 @@ class CelebADataModule(L.LightningDataModule):
 
             if stage == 'test' or stage is None:
                 self.celeba_test = CelebA(self.data_dir, split="test", transform=self.transform)
-                self.celeba_test.set_indices([], range(len(self.celeba_test)))
+                print(f"Test set size: {len(self.celeba_test)}")
 
         def train_dataloader(self):
             return DataLoader(self.celeba_train, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count(), persistent_workers=True)
