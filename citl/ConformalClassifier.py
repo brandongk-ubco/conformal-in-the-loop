@@ -2,6 +2,8 @@ from functools import partial
 
 import torch
 
+from .utils import sample_tensors
+
 
 def lac(y_hat, y):
     return 1 - y_hat[y.int()]
@@ -27,23 +29,28 @@ def reduce_correct(example):
     return y_hat[y.int()].bool()
 
 
-def approximate_quantile(x, q, num_samples=1000000):
-    num_samples = min(num_samples, x.numel())
-    samples = x.flatten()[torch.randint(0, x.numel(), (num_samples,))]
-    return torch.quantile(samples, q)
+def approximate_quantile(x, q):
+    return torch.quantile(x, q)
 
 
 class ConformalClassifier:
 
-    def __init__(self, method="score"):
+    def __init__(self, method="score", ignore_index=None):
         self.method = method
         self.reset()
+        self.ignore_index = ignore_index
 
     def reset(self):
         self.cp_examples = []
         self.val_labels = []
 
-    def append(self, y_hat, y):
+    def append(self, y_hat, y, percentage=1.0, skip_ignore=False):
+
+        if torch.is_tensor(y_hat):
+            y_hat = y_hat.detach()
+        if torch.is_tensor(y):
+            y = y.detach()
+
         if y_hat.ndim > 2:
             y_hat = y_hat.moveaxis(1, -1).flatten(end_dim=y_hat.ndim - 2)
 
@@ -51,9 +58,15 @@ class ConformalClassifier:
             y = y.flatten()
 
         if torch.is_tensor(y_hat):
-            y_hat = y_hat.softmax(axis=1).detach()
-        if torch.is_tensor(y):
-            y = y.detach()
+            y_hat = y_hat.softmax(axis=1)
+
+        if percentage < 1.0:
+            y_hat, y = sample_tensors(y_hat, y, percentage)
+
+        if not skip_ignore and self.ignore_index is not None:
+            mask = y != self.ignore_index
+            y = y[mask]
+            y_hat = y_hat[mask]
 
         assert y.ndim == 1
         assert y_hat.ndim == 2

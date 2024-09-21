@@ -1,12 +1,12 @@
 from enum import Enum
 from functools import partial
 
+from .CelebA import CelebADataModule
 from .CIFAR10 import CIFAR10DataModule
 from .CIFAR10UB import CIFAR10UBDataModule
 from .Cityscapes import CityscapesDataModule
 from .DFire import DFireDataModule
 from .MNIST import MNISTDataModule
-from .CelebA import CelebADataModule
 
 
 class Dataset(str, Enum):
@@ -15,7 +15,7 @@ class Dataset(str, Enum):
     MNIST = "MNIST"
     CityscapesCoarse = "CityscapesCoarse"
     CityscapesFine = "CityscapesFine"
-    CelebA = 'CelebA'
+    CelebA = "CelebA"
 
     @staticmethod
     def get(Dataset):

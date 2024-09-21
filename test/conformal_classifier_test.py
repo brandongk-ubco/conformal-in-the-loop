@@ -28,9 +28,20 @@ class TestConformalClassifier:
         y = y_hat.argmax(axis=1)
 
         cc = ConformalClassifier()
-        cc.append(y_hat, y)
+        cc.append(y_hat, y, percentage=1.0)
         cc.fit()
 
+    def test_sample(self):
+        num_examples = 256
+        num_classes = 10
+        y_hat = torch.rand(num_examples, num_classes)
+        y = y_hat.argmax(axis=1)
+
+        cc = ConformalClassifier()
+        cc.append(y_hat, y, percentage=0.5)
+        assert len(torch.concatenate(cc.cp_examples, axis=0)) == 128
+        assert len(torch.concatenate(cc.val_labels, axis=0)) == 128
+        cc.fit()
 
     def test_predict(self):
         num_examples = 256
