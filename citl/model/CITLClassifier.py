@@ -28,7 +28,7 @@ class CITLClassifier(L.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
-        self.model = model
+        self.model = torch.nn.Sequential(torch.nn.InstanceNorm2d(3), model)
 
         self.conformal_classifier = ConformalClassifier(method=method)
 

@@ -54,7 +54,7 @@ rm .*.ckpt || true
 
 # # METHOD ALPHA SWEEP
 
-numbers=(0.10)
+numbers=(0.01)
 
 for alpha in "${numbers[@]}"
 do

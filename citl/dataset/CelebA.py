@@ -22,9 +22,6 @@ class CelebA(BaseDataset):
         self.sensitive_idx = None
         self.augment_indices = {}
         self.augments = None
-        self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        )
         self.target_idx = self.attr_names.index("Wavy_Hair")
         self.sensitive_idx = self.attr_names.index("Male")
 
@@ -47,7 +44,7 @@ class CelebA(BaseDataset):
             img = augmented["image"]
 
         img = v2.Compose(
-            [v2.ToImage(), v2.ToDtype(torch.float32, scale=True), self.normalize]
+            [v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]
         )(img)
 
         TRAIN_TARGET_NOT_WAVY = 0
