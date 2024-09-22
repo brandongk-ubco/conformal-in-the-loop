@@ -103,8 +103,13 @@ class ConformalClassifier:
         conformal_sets = torch.vmap(mapper)(self.cp_examples).squeeze()
 
         if self.ignore_index is not None:
-            conformal_sets = torch.cat([conformal_sets[:, :self.ignore_index], conformal_sets[:, self.ignore_index + 1:]], dim=1)
-
+            conformal_sets = torch.cat(
+                [
+                    conformal_sets[:, : self.ignore_index],
+                    conformal_sets[:, self.ignore_index + 1 :],
+                ],
+                dim=1,
+            )
 
         correct = self.cp_examples.argmax(axis=1) == self.val_labels
 

@@ -2,7 +2,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def visualize_segmentation(image, num_classes, mask, prediction=None, prediction_set_size=None):
+def visualize_segmentation(
+    image, num_classes, mask, prediction=None, prediction_set_size=None
+):
 
     num_subplots = 0
     if prediction is not None:
@@ -31,8 +33,8 @@ def visualize_segmentation(image, num_classes, mask, prediction=None, prediction
     else:
         mode = "rowwise"
 
-    background_mask = (mask == 0)
-    mask = np.ma.masked_where(background_mask, mask)
+    background_mask = mask == 0
+    mask = np.ma.masked_where(~background_mask, mask)
 
     if mode == "colwise":
         plt.subplot(1, num_subplots, subplot)
@@ -64,7 +66,7 @@ def visualize_segmentation(image, num_classes, mask, prediction=None, prediction
             plt.subplot(num_subplots, 1, subplot)
 
         prediction = prediction.argmax(axis=0)
-        prediction = np.ma.masked_where(background_mask, prediction)
+        prediction = np.ma.masked_where(~background_mask, prediction)
 
         if image.ndim == 2 or image.shape[-1] == 1:
             plt.imshow(image, cmap="gray")
@@ -88,12 +90,17 @@ def visualize_segmentation(image, num_classes, mask, prediction=None, prediction
         subplot += 1
 
     if prediction_set_size is not None:
-        prediction_set_size = np.ma.masked_where(
-            np.logical_or(prediction_set_size == 1, background_mask), prediction_set_size
+        import pdb
+
+        pdb.set_trace()
+        uncertain = np.ma.masked_where(
+            np.logical_and(prediction_set_size >= 1, ~background_mask),
+            prediction_set_size,
         )
 
         atypical = np.ma.masked_where(
-            np.logical_or(prediction_set_size == 0, background_mask), np.ones_like(prediction_set_size) * num_classes
+            np.logical_and(prediction_set_size == 0, ~background_mask),
+            np.ones_like(prediction_set_size) * num_classes,
         )
 
         if mode == "colwise":
@@ -109,7 +116,7 @@ def visualize_segmentation(image, num_classes, mask, prediction=None, prediction
             raise ValueError(f"Image has invalid shape: {image.shape}")
 
         plt.imshow(
-            prediction_set_size,
+            uncertain,
             cmap="Reds",
             interpolation="none",
             alpha=0.5,

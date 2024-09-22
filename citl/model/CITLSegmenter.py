@@ -130,7 +130,9 @@ class CITLSegmenter(L.LightningModule):
                 img = img.moveaxis(0, -1)
             img = img - img.min()
             img = img / img.max()
-            fig = visualize_segmentation(img.detach().cpu(), self.num_classes, mask=target[1:].detach().cpu())
+            fig = visualize_segmentation(
+                img.detach().cpu(), self.num_classes, mask=target[1:].detach().cpu()
+            )
             if type(self.trainer.logger) is TensorBoardLogger:
                 self.logger.experiment.add_figure(
                     "example_image", fig, self.global_step

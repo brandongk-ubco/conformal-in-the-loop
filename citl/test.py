@@ -1,19 +1,12 @@
-import itertools
-import json
 import logging
 import os
-import shutil
-import sys
-import tempfile
 
 import pytorch_lightning as L
 import segmentation_models_pytorch as smp
 import torch
 from loguru import logger
-from neptune.types import File
-from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from timm import create_model
-from torch import nn
 
 from citl import cli
 
@@ -74,6 +67,8 @@ def test(
     model = model.load_from_checkpoint(
         checkpoint, model=net, num_classes=datamodule.num_classes, alpha=alpha
     )
-    model.conformal_classifier.quantiles = {alpha: quantile}
+    datamodule.setup()
+    trainer.validate(model=model, datamodule=datamodule)
+    logger.info(f"Found quantile: {model.conformal_classifier.quantiles}")
 
     trainer.test(model=model, datamodule=datamodule)
