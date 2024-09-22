@@ -45,12 +45,12 @@ rm .*.ckpt || true
 #     "--lr-method=plateau" \
 #     "--method=score"
 
-python -m citl train CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--no-selectively-backpropagate" \
-    "--alpha=0.10" \
-    "--lr-method=plateau" \
-    "--method=score"
+# python -m citl train CityscapesFine efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--no-selectively-backpropagate" \
+#     "--alpha=0.10" \
+#     "--lr-method=plateau" \
+#     "--method=score"
 
 # # METHOD ALPHA SWEEP
 

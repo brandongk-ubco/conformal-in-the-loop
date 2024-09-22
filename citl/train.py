@@ -139,8 +139,7 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=1,
-        limit_train_batches=1,
+        max_epochs=sys.maxsize,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
