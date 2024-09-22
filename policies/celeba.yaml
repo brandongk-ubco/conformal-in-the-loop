@@ -20,10 +20,8 @@ transform:
           contrast: 0.2
           saturation: 0.2
           hue: 0.02
-          p: 0.5
         - __class_fullname__: ImageCompression
           quality_lower: 90
-        - __class_fullname__: Blur
         - __class_fullname__: GaussNoise
     - __class_fullname__: RandomBrightnessContrast
       p: 0.25

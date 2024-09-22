@@ -45,12 +45,12 @@ rm .*.ckpt || true
 #     "--lr-method=plateau" \
 #     "--method=score"
 
-# python -m citl train CityscapesFine efficientnet-b0 \
-#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
-#     "--no-selectively-backpropagate" \
-#     "--alpha=0.10" \
-#     "--lr-method=plateau" \
-#     "--method=score"
+python -m citl train CityscapesFine efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
 
 # # METHOD ALPHA SWEEP
 
@@ -59,11 +59,11 @@ numbers=(0.01)
 for alpha in "${numbers[@]}"
 do
 
-    python -m citl train CelebA resnet18 \
-        "--selectively-backpropagate" \
-        "--alpha=${alpha}" \
-        "--augmentation-policy-path=./policies/celeba.yaml" \
-        "--lr-method=plateau"
+    # python -m citl train CelebA resnet18 \
+    #     "--selectively-backpropagate" \
+    #     "--alpha=${alpha}" \
+    #     "--augmentation-policy-path=./policies/celeba.yaml" \
+    #     "--lr-method=plateau"
 
     # python -m citl train DFire mnasnet_small \
     #     "--augmentation-policy-path=./policies/DFire.yaml" \
@@ -79,12 +79,12 @@ do
     #     "--lr-method=plateau" \
     #     "--method=score"
 
-    # python -m citl train CityscapesFine efficientnet-b0 \
-    #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    #     "--selectively-backpropagate" \
-    #     "--alpha=${alpha}" \
-    #     "--lr-method=plateau" \
-    #     "--method=score"
+    python -m citl train CityscapesFine efficientnet-b0 \
+        "--augmentation-policy-path=./policies/cityscapes.yaml" \
+        "--selectively-backpropagate" \
+        "--alpha=${alpha}" \
+        "--lr-method=plateau" \
+        "--method=score"
 done
 
 
