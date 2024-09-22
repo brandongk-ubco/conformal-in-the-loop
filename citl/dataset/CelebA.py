@@ -43,9 +43,7 @@ class CelebA(BaseDataset):
             augmented = self.augments(image=np.array(img))
             img = augmented["image"]
 
-        img = v2.Compose(
-            [v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]
-        )(img)
+        img = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])(img)
 
         TRAIN_TARGET_NOT_WAVY = 0
         TRAIN_TARGET_WAVY = 1

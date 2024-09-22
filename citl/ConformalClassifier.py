@@ -44,7 +44,7 @@ class ConformalClassifier:
         self.cp_examples = []
         self.val_labels = []
 
-    def append(self, y_hat, y, percentage=1.0, skip_ignore=False):
+    def append(self, y_hat, y, percentage=1.0):
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.detach()
@@ -63,7 +63,7 @@ class ConformalClassifier:
         if percentage < 1.0:
             y_hat, y = sample_tensors(y_hat, y, percentage)
 
-        if not skip_ignore and self.ignore_index is not None:
+        if self.ignore_index is not None:
             mask = y != self.ignore_index
             y = y[mask]
             y_hat = y_hat[mask]
@@ -101,6 +101,10 @@ class ConformalClassifier:
         mapper = partial(reduce_quantile, function=lac_set, quantile=quantile)
 
         conformal_sets = torch.vmap(mapper)(self.cp_examples).squeeze()
+
+        if self.ignore_index is not None:
+            conformal_sets = torch.cat([conformal_sets[:, :self.ignore_index], conformal_sets[:, self.ignore_index + 1:]], dim=1)
+
 
         correct = self.cp_examples.argmax(axis=1) == self.val_labels
 

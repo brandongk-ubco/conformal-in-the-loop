@@ -111,7 +111,7 @@ class CITLSegmenter(L.LightningModule):
         y_hat = self(x)
 
         self.conformal_classifier.reset()
-        self.conformal_classifier.append(y_hat, y, skip_ignore=True)
+        self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(alpha=self.alpha)
 
         metrics = dict(
@@ -130,7 +130,7 @@ class CITLSegmenter(L.LightningModule):
                 img = img.moveaxis(0, -1)
             img = img - img.min()
             img = img / img.max()
-            fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
+            fig = visualize_segmentation(img.detach().cpu(), self.num_classes, mask=target[1:].detach().cpu())
             if type(self.trainer.logger) is TensorBoardLogger:
                 self.logger.experiment.add_figure(
                     "example_image", fig, self.global_step
@@ -331,24 +331,36 @@ class CITLSegmenter(L.LightningModule):
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
 
-        img, target = x[1, :, :, :], y[1]
-        if img.ndim > 2:
-            img = img.moveaxis(0, -1)
+        y_flt = y.long().flatten()
+        prediction_set_sizes = torch.zeros_like(y_flt)
+        prediction_set_sizes[y_flt != 0] = uncertainty["prediction_set_size"]
+        prediction_set_sizes = prediction_set_sizes.reshape(y.shape)
 
-        fig = visualize_segmentation(
-            img.detach().cpu(),
-            mask=target.detach().cpu(),
-            prediction=y_hat[1].detach().cpu(),
-            prediction_set_size=uncertainty["prediction_set_size"]
-            .reshape(y.shape)[1]
-            .detach()
-            .cpu(),
-        )
-        if type(self.trainer.logger) is TensorBoardLogger:
-            self.logger.experiment.add_figure("test_example", fig, batch_idx)
-        elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["test/examples"].append(fig)
-        plt.close()
+        for i in range(x.shape[0]):
+            img, target, prediction, prediction_set_size = (
+                x[i, :, :, :],
+                y[i],
+                y_hat[i],
+                prediction_set_sizes[i],
+            )
+
+            if img.ndim > 2:
+                img = img.moveaxis(0, -1)
+
+            fig = visualize_segmentation(
+                img.detach().cpu(),
+                self.num_classes,
+                mask=target.detach().cpu(),
+                prediction=prediction.detach().cpu(),
+                prediction_set_size=prediction_set_size.detach().cpu(),
+            )
+            if type(self.trainer.logger) is TensorBoardLogger:
+                self.logger.experiment.add_figure(
+                    "test_example", fig, self.global_step + batch_idx
+                )
+            elif type(self.trainer.logger) is NeptuneLogger:
+                self.logger.experiment["test/examples"].append(fig)
+            plt.close()
 
         self.test_accuracy.update(y_hat, y)
         self.test_jaccard.update(y_hat, y)

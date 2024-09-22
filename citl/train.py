@@ -139,14 +139,14 @@ def train(
     trainer = L.Trainer(
         logger=trainer_logger,
         num_sanity_val_steps=sys.maxsize,
-        max_epochs=sys.maxsize,
+        max_epochs=1,
+        limit_train_batches=1,
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
     )
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     quantiles = model.conformal_classifier.quantiles
     quantiles = {k: v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
@@ -159,6 +159,8 @@ def train(
         trainer_logger.experiment["quantiles.json"].upload(
             File.from_content(quantiles_json)
         )
+
+    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     x, _, _ = next(itertools.islice(datamodule.train_dataloader(), 1, None))
     input_sample = x[0]
