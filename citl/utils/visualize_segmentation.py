@@ -90,9 +90,6 @@ def visualize_segmentation(
         subplot += 1
 
     if prediction_set_size is not None:
-        import pdb
-
-        pdb.set_trace()
         uncertain = np.ma.masked_where(
             np.logical_and(prediction_set_size >= 1, ~background_mask),
             prediction_set_size,
