@@ -1,7 +1,3 @@
-import math
-from statistics import mean
-
-import numpy as np
 import pandas as pd
 import pytorch_lightning as L
 import seaborn as sns
@@ -54,6 +50,7 @@ class CITLClassifier(L.LightningModule):
         self.method = method
         self.examples_without_uncertainty = {}
         self.test_results = []
+        self.loss = torch.nn.CrossEntropyLoss(reduction="none")
 
     def forward(self, x):
         if x.dim() == 2:
@@ -130,7 +127,7 @@ class CITLClassifier(L.LightningModule):
                 else:
                     self.examples_without_uncertainty[idx] = 1
 
-        loss = F.cross_entropy(y_hat, y, reduction="none")
+        loss = self.loss(y_hat, y)
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss_weights = prediction_set_size
@@ -234,7 +231,7 @@ class CITLClassifier(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y)
+        val_loss = self.loss(y_hat, y).mean()
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
@@ -344,7 +341,7 @@ class CITLClassifier(L.LightningModule):
         x, y, attributes = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y)
+        test_loss = self.loss(y_hat, y).mean()
 
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -400,7 +397,7 @@ class CITLClassifier(L.LightningModule):
                 mode="min",
                 factor=0.2,
                 patience=10,
-                min_lr=1e-6,
+                min_lr=1e-7,
                 verbose=True,
             )
             interval = "epoch"

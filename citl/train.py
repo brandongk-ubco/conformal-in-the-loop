@@ -40,6 +40,7 @@ def train(
     lr_method: str = "plateau",
     lr: float = 5e-4,
     method="score",
+    pretrained=True,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -56,6 +57,7 @@ def train(
             model_name,
             num_classes=datamodule.num_classes,
             drop_rate=0.2,
+            pretrained=pretrained,
         )
     elif datamodule.task == "segmentation":
         net = smp.Unet(
@@ -113,11 +115,14 @@ def train(
         trainer_logger.experiment["sys/tags"].add(
             "Baseline" if not selectively_backpropagate else "Method"
         )
+        trainer_logger.experiment["sys/tags"].add(
+            "Pretrained" if pretrained else "Scratch"
+        )
 
     model_callback_config = {
-        "filename": "{epoch}-{val_accuracy:.3f}",
-        "monitor": "val_accuracy",
-        "mode": "max",
+        "filename": "{epoch}-{val_loss:.3f}",
+        "monitor": "val_loss",
+        "mode": "min",
         "save_top_k": 1,
         "save_last": True,
     }
