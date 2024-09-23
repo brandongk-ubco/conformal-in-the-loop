@@ -331,25 +331,6 @@ class CITLSegmenter(L.LightningModule):
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
 
-        img, target = x[1, :, :, :], y[1]
-        if img.ndim > 2:
-            img = img.moveaxis(0, -1)
-
-        fig = visualize_segmentation(
-            img.detach().cpu(),
-            mask=target.detach().cpu(),
-            prediction=y_hat[1].detach().cpu(),
-            prediction_set_size=uncertainty["prediction_set_size"]
-            .reshape(y.shape)[1]
-            .detach()
-            .cpu(),
-        )
-        if type(self.trainer.logger) is TensorBoardLogger:
-            self.logger.experiment.add_figure("test_example", fig, batch_idx)
-        elif type(self.trainer.logger) is NeptuneLogger:
-            self.logger.experiment["test/examples"].append(fig)
-        plt.close()
-
         self.test_accuracy.update(y_hat, y)
         self.test_jaccard.update(y_hat, y)
 
