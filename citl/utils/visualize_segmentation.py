@@ -2,7 +2,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-def visualize_segmentation(image, mask=None, prediction=None, prediction_set_size=None):
+def visualize_segmentation(
+    image, num_classes, mask, prediction=None, prediction_set_size=None
+):
 
     num_subplots = 0
     if prediction is not None:
@@ -17,7 +19,7 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
             "At least one of mask, prediction or prediction_set_size must be provided."
         )
 
-    num_classes = None
+    num_classes = num_classes
 
     image = image / image.max()
     image = image - image.min()
@@ -31,29 +33,29 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
     else:
         mode = "rowwise"
 
-    if mask is not None:
-        mask = np.ma.masked_where(mask == 0, mask)
+    background_mask = mask == 0
+    mask = np.ma.masked_where(~background_mask, mask)
 
-        if mode == "colwise":
-            plt.subplot(1, num_subplots, subplot)
-        else:
-            plt.subplot(num_subplots, 1, subplot)
+    if mode == "colwise":
+        plt.subplot(1, num_subplots, subplot)
+    else:
+        plt.subplot(num_subplots, 1, subplot)
 
-        if image.ndim == 2 or image.shape[-1] == 1:
-            plt.imshow(image, cmap="gray")
-        elif image.shape[-1] == 3:
-            plt.imshow(image)
-        else:
-            raise ValueError(f"Image has invalid shape: {image.shape}")
+    if image.ndim == 2 or image.shape[-1] == 1:
+        plt.imshow(image, cmap="gray")
+    elif image.shape[-1] == 3:
+        plt.imshow(image)
+    else:
+        raise ValueError(f"Image has invalid shape: {image.shape}")
 
-        plt.imshow(
-            mask, cmap="jet", interpolation="none", alpha=0.2, vmin=1, vmax=num_classes
-        )
-        plt.grid(False)
-        plt.axis("off")
-        plt.title("Ground Truth")
+    plt.imshow(
+        mask, cmap="jet", interpolation="none", alpha=0.2, vmin=1, vmax=num_classes
+    )
+    plt.grid(False)
+    plt.axis("off")
+    plt.title("Ground Truth")
 
-        subplot += 1
+    subplot += 1
 
     if prediction is not None:
         num_classes = prediction.shape[0]
@@ -64,7 +66,7 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
             plt.subplot(num_subplots, 1, subplot)
 
         prediction = prediction.argmax(axis=0)
-        prediction = np.ma.masked_where(prediction == 0, prediction)
+        prediction = np.ma.masked_where(~background_mask, prediction)
 
         if image.ndim == 2 or image.shape[-1] == 1:
             plt.imshow(image, cmap="gray")
@@ -88,16 +90,16 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
         subplot += 1
 
     if prediction_set_size is not None:
-
-        prediction_set_size = np.ma.masked_where(
-            prediction_set_size == 1, prediction_set_size
+        uncertain = np.ma.masked_where(
+            np.logical_and(prediction_set_size >= 1, ~background_mask),
+            prediction_set_size,
         )
 
         atypical = np.ma.masked_where(
-            prediction_set_size == 0, np.ones_like(prediction_set_size) * num_classes
+            np.logical_and(prediction_set_size == 0, ~background_mask),
+            np.ones_like(prediction_set_size) * num_classes,
         )
 
-        num_classes = prediction_set_size.max() if num_classes is None else num_classes
         if mode == "colwise":
             plt.subplot(1, num_subplots, subplot)
         else:
@@ -111,7 +113,7 @@ def visualize_segmentation(image, mask=None, prediction=None, prediction_set_siz
             raise ValueError(f"Image has invalid shape: {image.shape}")
 
         plt.imshow(
-            prediction_set_size,
+            uncertain,
             cmap="Reds",
             interpolation="none",
             alpha=0.5,

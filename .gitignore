@@ -8,6 +8,7 @@ log.txt
 .scale_batch_size*.ckpt
 test/test_*.png
 *.csv
+*.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
