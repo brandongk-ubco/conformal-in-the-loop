@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
-
 from ..ConformalClassifier import ConformalClassifier
 
 
@@ -394,7 +393,7 @@ class CITLClassifier(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="min",
+                mode="max",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-7,
@@ -407,7 +406,7 @@ class CITLClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_loss",
+                    "monitor": "val_accuracy",
                 }
             ]
 

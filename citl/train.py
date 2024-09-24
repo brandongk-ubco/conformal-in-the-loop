@@ -38,9 +38,9 @@ def train(
     selectively_backpropagate: bool = False,
     alpha: float = 0.10,
     lr_method: str = "plateau",
-    lr: float = 5e-4,
+    lr: float = 1e-4,
     method="score",
-    pretrained=True,
+    pretrained=False,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -120,9 +120,9 @@ def train(
         )
 
     model_callback_config = {
-        "filename": "{epoch}-{val_loss:.3f}",
-        "monitor": "val_loss",
-        "mode": "min",
+        "filename": "{epoch}-{val_accuracy:.3f}",
+        "monitor": "val_accuracy",
+        "mode": "max",
         "save_top_k": 1,
         "save_last": True,
     }
@@ -135,8 +135,8 @@ def train(
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_loss",
-            mode="min",
+            monitor="val_accuracy",
+            mode="max",
             patience=20,
         ),
     ]
