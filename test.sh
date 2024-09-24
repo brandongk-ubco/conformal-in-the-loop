@@ -4,5 +4,5 @@ set -eux
 
 python -m citl test CelebA resnet18 \
     "--alpha=0.01" \
-    "--checkpoint=./epoch=21-val_accuracy=0.789.bin"
+    "--checkpoint=./epoch=11-val_accuracy=0.814.bin"
 
