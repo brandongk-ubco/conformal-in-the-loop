@@ -49,7 +49,7 @@ class CITLClassifier(L.LightningModule):
         self.method = method
         self.examples_without_uncertainty = {}
         self.test_results = []
-        self.loss = FocalLoss("multiclass", reduction="none", from_logits=True)
+        self.loss = FocalLoss(reduction="none")
 
     def forward(self, x):
         if x.dim() == 2:

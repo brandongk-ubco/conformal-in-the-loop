@@ -20,9 +20,9 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain CIFAR10UB mnasnet_small \
-    "--augmentation-policy-path=./policies/cifar10.yaml" \
-    "--lr-method=plateau"
+# python -m citl standardtrain CIFAR10UB mnasnet_small \
+#     "--augmentation-policy-path=./policies/cifar10.yaml" \
+#     "--lr-method=plateau"
 
 # python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
@@ -36,12 +36,12 @@ python -m citl standardtrain CIFAR10UB mnasnet_small \
 #     "--augmentation-policy-path=./policies/celeba.yaml" \
 #     "--lr-method=plateau"
 
-# python -m citl train CIFAR10 mnasnet_small \
-#     "--augmentation-policy-path=./policies/cifar10.yaml" \
-#     "--no-selectively-backpropagate" \
-#     "--alpha=0.10" \
-#     "--lr-method=plateau" \
-#     "--method=score"
+python -m citl train CIFAR10UB mnasnet_small \
+    "--augmentation-policy-path=./policies/cifar10.yaml" \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
 
 # python -m citl train DFire mnasnet_small \
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
@@ -64,11 +64,16 @@ numbers=(0.01)
 for alpha in "${numbers[@]}"
 do
 
-    python -m citl train CelebA resnet18 \
-        "--selectively-backpropagate" \
+    python -m citl train CIFAR10UB mnasnet_small \
+        "--augmentation-policy-path=./policies/cifar10.yaml" \
         "--alpha=${alpha}" \
-        "--augmentation-policy-path=./policies/celeba.yaml" \
         "--lr-method=plateau"
+
+    # python -m citl train CelebA resnet18 \
+    #     "--selectively-backpropagate" \
+    #     "--alpha=${alpha}" \
+    #     "--augmentation-policy-path=./policies/celeba.yaml" \
+    #     "--lr-method=plateau"
 
     # python -m citl train DFire mnasnet_small \
     #     "--augmentation-policy-path=./policies/DFire.yaml" \

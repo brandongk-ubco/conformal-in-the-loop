@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from torchmetrics.classification.accuracy import Accuracy
 from torchmetrics.classification.jaccard import JaccardIndex
 
 from ..ConformalClassifier import ConformalClassifier
@@ -30,10 +29,6 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier = ConformalClassifier(method=method, ignore_index=0)
 
         self.num_classes = num_classes
-
-        self.accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
-        )
         self.jaccard = JaccardIndex(
             task="multiclass",
             num_classes=num_classes,
@@ -42,9 +37,6 @@ class CITLSegmenter(L.LightningModule):
             zero_division=1.0,
         )
 
-        self.val_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
-        )
         self.val_jaccard = JaccardIndex(
             task="multiclass",
             num_classes=num_classes,
@@ -53,9 +45,6 @@ class CITLSegmenter(L.LightningModule):
             zero_division=1.0,
         )
 
-        self.test_accuracy = Accuracy(
-            task="multiclass", num_classes=num_classes, average="none", ignore_index=0
-        )
         self.test_jaccard = JaccardIndex(
             task="multiclass",
             num_classes=num_classes,
@@ -93,7 +82,6 @@ class CITLSegmenter(L.LightningModule):
 
     def on_train_epoch_start(self) -> None:
         self.jaccard.reset()
-        self.accuracy.reset()
         current_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.class_weights = dict(
@@ -156,19 +144,6 @@ class CITLSegmenter(L.LightningModule):
                 self.class_weights[clazz] += weights
         else:
             loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].mean()
-
-        accs = self.accuracy(y_hat, y)
-        self.log("accuracy", torch.mean(accs[1:]))
-        self.log_dict(
-            dict(
-                zip(
-                    [f"accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
-                )
-            ),
-            on_step=True,
-            on_epoch=False,
-        )
 
         jacs = self.jaccard(y_hat, y)
         self.log("jaccard", torch.mean(jacs[1:]))
@@ -250,7 +225,6 @@ class CITLSegmenter(L.LightningModule):
 
     def on_validation_epoch_start(self) -> None:
         self.val_jaccard.reset()
-        self.val_accuracy.reset()
         self.conformal_classifier.reset()
         self.val_batch_idx_fit_uncertainty = (
             len(self.trainer.datamodule.val_dataloader()) // 10
@@ -283,22 +257,10 @@ class CITLSegmenter(L.LightningModule):
             )
             self.log_dict(metrics, prog_bar=True)
 
-        self.val_accuracy.update(y_hat, y)
         self.val_jaccard.update(y_hat, y)
         self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
-        accs = self.val_accuracy.compute()
-        self.log("val_accuracy", torch.mean(accs[1:]), prog_bar=True)
-        self.log_dict(
-            dict(
-                zip(
-                    [f"val_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
-                )
-            )
-        )
-
         jacs = self.val_jaccard.compute()
         self.log("val_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
@@ -312,7 +274,6 @@ class CITLSegmenter(L.LightningModule):
 
     def on_test_epoch_start(self) -> None:
         self.test_jaccard.reset()
-        self.test_accuracy.reset()
 
     def test_step(self, batch, batch_idx):
         x, y, _ = batch
@@ -333,23 +294,11 @@ class CITLSegmenter(L.LightningModule):
             metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
         )
 
-        self.test_accuracy.update(y_hat, y)
         self.test_jaccard.update(y_hat, y)
 
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_end(self):
-        accs = self.test_accuracy.compute()
-        self.log("test_accuracy", torch.mean(accs[1:]), prog_bar=True)
-        self.log_dict(
-            dict(
-                zip(
-                    [f"test_accuracy_{c}" for c in self.trainer.datamodule.classes[1:]],
-                    accs[1:],
-                )
-            )
-        )
-
         jacs = self.test_jaccard.compute()
         self.log("test_jaccard", torch.mean(jacs[1:]))
         self.log_dict(
@@ -371,7 +320,7 @@ class CITLSegmenter(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="min",
+                mode="max",
                 factor=0.2,
                 patience=10,
                 min_lr=1e-6,
@@ -384,7 +333,7 @@ class CITLSegmenter(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_loss",
+                    "monitor": "val_jaccard",
                 }
             ]
 
