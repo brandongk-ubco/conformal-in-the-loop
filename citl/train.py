@@ -38,8 +38,9 @@ def train(
     selectively_backpropagate: bool = False,
     alpha: float = 0.10,
     lr_method: str = "plateau",
-    lr: float = 5e-4,
+    lr: float = 1e-4,
     method="score",
+    pretrained: bool=True,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -56,6 +57,7 @@ def train(
             model_name,
             num_classes=datamodule.num_classes,
             drop_rate=0.2,
+            pretrained=pretrained,
         )
     elif datamodule.task == "segmentation":
         net = smp.Unet(
@@ -113,6 +115,9 @@ def train(
         trainer_logger.experiment["sys/tags"].add(
             "Baseline" if not selectively_backpropagate else "Method"
         )
+        trainer_logger.experiment["sys/tags"].add(
+            "Pretrained" if pretrained else "Scratch"
+        )
 
     model_callback_config = {
         "filename": "{epoch}-{val_accuracy:.3f}",
@@ -130,8 +135,8 @@ def train(
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_loss",
-            mode="min",
+            monitor="val_accuracy",
+            mode="max",
             patience=20,
         ),
     ]
@@ -146,7 +151,6 @@ def train(
     )
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     quantiles = model.conformal_classifier.quantiles
     quantiles = {k: v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
@@ -159,6 +163,8 @@ def train(
         trainer_logger.experiment["quantiles.json"].upload(
             File.from_content(quantiles_json)
         )
+
+    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     x, _, _ = next(itertools.islice(datamodule.train_dataloader(), 1, None))
     input_sample = x[0]

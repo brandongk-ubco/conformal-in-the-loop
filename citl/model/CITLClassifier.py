@@ -1,7 +1,3 @@
-import math
-from statistics import mean
-
-import numpy as np
 import pandas as pd
 import pytorch_lightning as L
 import seaborn as sns
@@ -10,9 +6,8 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
-
 from ..ConformalClassifier import ConformalClassifier
-
+from ..losses.FocalLoss import FocalLoss
 
 class CITLClassifier(L.LightningModule):
     def __init__(
@@ -54,6 +49,7 @@ class CITLClassifier(L.LightningModule):
         self.method = method
         self.examples_without_uncertainty = {}
         self.test_results = []
+        self.loss = FocalLoss("multiclass", reduction="none", from_logits=True)
 
     def forward(self, x):
         if x.dim() == 2:
@@ -130,7 +126,7 @@ class CITLClassifier(L.LightningModule):
                 else:
                     self.examples_without_uncertainty[idx] = 1
 
-        loss = F.cross_entropy(y_hat, y, reduction="none")
+        loss = self.loss(y_hat, y)
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss_weights = prediction_set_size
@@ -234,7 +230,7 @@ class CITLClassifier(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y)
+        val_loss = self.loss(y_hat, y).mean()
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
@@ -344,7 +340,7 @@ class CITLClassifier(L.LightningModule):
         x, y, attributes = batch
         y_hat = self(x)
 
-        test_loss = F.cross_entropy(y_hat, y)
+        test_loss = self.loss(y_hat, y).mean()
 
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -397,10 +393,10 @@ class CITLClassifier(L.LightningModule):
         if self.lr_method == "plateau":
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
-                mode="min",
+                mode="max",
                 factor=0.2,
                 patience=10,
-                min_lr=1e-6,
+                min_lr=1e-7,
                 verbose=True,
             )
             interval = "epoch"
@@ -410,7 +406,7 @@ class CITLClassifier(L.LightningModule):
                 {
                     "scheduler": scheduler,
                     "interval": interval,
-                    "monitor": "val_loss",
+                    "monitor": "val_accuracy",
                 }
             ]
 

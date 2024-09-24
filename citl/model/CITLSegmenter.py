@@ -19,7 +19,6 @@ class CITLSegmenter(L.LightningModule):
         num_classes,
         selectively_backpropagate=False,
         alpha=0.10,
-        val_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
         method="score",
@@ -67,7 +66,6 @@ class CITLSegmenter(L.LightningModule):
 
         self.selectively_backpropagate = selectively_backpropagate
         self.alpha = alpha
-        self.val_alpha = val_alpha
         self.lr = lr
         self.pixel_dropout = 0.0
         self.lr_method = lr_method
@@ -111,12 +109,12 @@ class CITLSegmenter(L.LightningModule):
         y_hat = self(x)
 
         self.conformal_classifier.reset()
-        self.conformal_classifier.append(y_hat, y, skip_ignore=True)
+        self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(alpha=self.alpha)
 
         metrics = dict(
             [
-                (k, v.float().reshape(y.shape)[y != 0].mean())
+                (k, v.float().mean())
                 for k, v in uncertainty.items()
             ]
         )
@@ -130,7 +128,9 @@ class CITLSegmenter(L.LightningModule):
                 img = img.moveaxis(0, -1)
             img = img - img.min()
             img = img / img.max()
-            fig = visualize_segmentation(img.detach().cpu(), mask=target.detach().cpu())
+            fig = visualize_segmentation(
+                img.detach().cpu(), self.num_classes, mask=target[1:].detach().cpu()
+            )
             if type(self.trainer.logger) is TensorBoardLogger:
                 self.logger.experiment.add_figure(
                     "example_image", fig, self.global_step
@@ -140,14 +140,16 @@ class CITLSegmenter(L.LightningModule):
             plt.close()
 
         if self.selectively_backpropagate:
-            prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
-            loss = F.cross_entropy(y_hat, y.long(), reduction="none")
+            prediction_set_size = uncertainty["prediction_set_size"]
+            loss = F.cross_entropy(y_hat, y.long(), reduction="none")[y != 0].flatten()
             loss_weights = prediction_set_size
             loss = loss * loss_weights
-            loss = loss[y != 0].mean()
+            loss = loss.mean()
 
+            y_flt = y[y != 0].long()
+            y_flt = y_flt.flatten()
             for clazz in range(1, self.num_classes):
-                class_idxs = y == clazz
+                class_idxs = y_flt == clazz
                 count = class_idxs.sum()
                 weights = loss_weights[class_idxs].sum()
                 self.class_counts[clazz] += count
@@ -263,7 +265,7 @@ class CITLSegmenter(L.LightningModule):
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y, percentage=0.1)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
-            self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
+            self.conformal_classifier.fit(alphas=set([self.alpha]))
             quantiles = self.conformal_classifier.quantiles
             quantiles = {
                 f"quantile_{k}": v.detach().cpu().numpy().tolist()
@@ -273,7 +275,7 @@ class CITLSegmenter(L.LightningModule):
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
-                alpha=self.val_alpha
+                alpha=self.alpha
             )
 
             metrics = dict(
@@ -321,7 +323,7 @@ class CITLSegmenter(L.LightningModule):
         self.conformal_classifier.reset()
         self.conformal_classifier.append(y_hat, y)
         _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alpha=self.val_alpha
+            alpha=self.alpha
         )
 
         metrics = dict(
