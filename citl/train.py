@@ -151,7 +151,6 @@ def train(
     )
 
     trainer.fit(model=model, datamodule=datamodule)
-    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     quantiles = model.conformal_classifier.quantiles
     quantiles = {k: v.detach().cpu().numpy().tolist() for k, v in quantiles.items()}
@@ -164,6 +163,8 @@ def train(
         trainer_logger.experiment["quantiles.json"].upload(
             File.from_content(quantiles_json)
         )
+
+    trainer.test(ckpt_path="best", datamodule=datamodule)
 
     x, _, _ = next(itertools.islice(datamodule.train_dataloader(), 1, None))
     input_sample = x[0]
