@@ -1,6 +1,7 @@
 import os
 import random
 from typing import Any, Tuple
+
 import albumentations as A
 import pytorch_lightning as L
 import torch
@@ -74,12 +75,16 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Resize(self.image_size, max_size=self.image_size + 1, antialias=False),
+                v2.Resize(
+                    self.image_size, max_size=self.image_size + 1, antialias=False
+                ),
                 v2.CenterCrop(self.image_size),
             ]
         )
 
-    def reduce_samples_for_imbalance(self, dataset, reduce_classes: list[int], reduce_fraction: float):
+    def reduce_samples_for_imbalance(
+        self, dataset, reduce_classes: list[int], reduce_fraction: float
+    ):
         """Reduces the samples in the specified classes by the given fraction."""
         indices_to_keep = []
         for i, (img, target) in enumerate(zip(dataset.data, dataset.targets)):
@@ -88,21 +93,27 @@ class CIFAR10UBDataModule(L.LightningDataModule):
                     indices_to_keep.append(i)
             else:
                 indices_to_keep.append(i)
-        
+
         dataset.data = dataset.data[indices_to_keep]
         dataset.targets = [dataset.targets[i] for i in indices_to_keep]
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            cifar_full = CIFAR10(self.data_dir, train=True, download = True, transform=self.transform)
-            reduce_classes = [0, 1]  
-            self.reduce_samples_for_imbalance(cifar_full, reduce_classes, reduce_fraction=0.2)
+            cifar_full = CIFAR10(
+                self.data_dir, train=True, download=True, transform=self.transform
+            )
+            reduce_classes = [0, 1]
+            self.reduce_samples_for_imbalance(
+                cifar_full, reduce_classes, reduce_fraction=0.2
+            )
             dataset_length = len(cifar_full)
 
             train_size = int(0.9 * dataset_length)
             val_size = dataset_length - train_size
 
-            self.cifar_train, self.cifar_val = random_split(cifar_full, [train_size, val_size])
+            self.cifar_train, self.cifar_val = random_split(
+                cifar_full, [train_size, val_size]
+            )
             cifar_full.set_indices(self.cifar_train.indices, self.cifar_val.indices)
             cifar_full.augments = self.augments
 

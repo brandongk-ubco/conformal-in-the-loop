@@ -40,7 +40,7 @@ def train(
     lr_method: str = "plateau",
     lr: float = 5e-4,
     method="score",
-    pretrained: bool=True,
+    pretrained: bool = True,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -137,7 +137,7 @@ def train(
         }
     else:
         raise ValueError("Unknown task")
-    
+
     if trainer_logger.log_dir:
         model_callback_config["dirpath"] = os.path.join(
             trainer_logger.log_dir, "checkpoints"
@@ -147,7 +147,9 @@ def train(
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_accuracy" if datamodule.task == "classification" else "val_jaccard",
+            monitor=(
+                "val_accuracy" if datamodule.task == "classification" else "val_jaccard"
+            ),
             mode="max",
             patience=20,
         ),

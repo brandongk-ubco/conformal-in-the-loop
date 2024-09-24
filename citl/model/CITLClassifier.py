@@ -6,8 +6,10 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
+
 from ..ConformalClassifier import ConformalClassifier
 from ..losses.FocalLoss import FocalLoss
+
 
 class CITLClassifier(L.LightningModule):
     def __init__(

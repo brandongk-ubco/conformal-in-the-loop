@@ -60,7 +60,9 @@ class ConformalClassifier:
         if self.ignore_index is not None:
             mask = y != self.ignore_index
             y = y[mask]
-            y_hat = y_hat[mask][:, 1:] # TODO - this assume ignore_index is always 0, which is not true in general
+            y_hat = y_hat[mask][
+                :, 1:
+            ]  # TODO - this assume ignore_index is always 0, which is not true in general
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1)
