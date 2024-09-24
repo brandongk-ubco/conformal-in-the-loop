@@ -2,7 +2,7 @@
 
 set -eux
 
-python -m citl test CityscapesFine efficientnet-b0 \
+python -m citl test CelebA resnet18 \
     "--alpha=0.01" \
-    "--checkpoint=./last.bin"
+    "--checkpoint=./epoch=21-val_accuracy=0.789.bin"
 

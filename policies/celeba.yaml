@@ -36,6 +36,11 @@ transform:
       p: 1
       height: 176
       width: 176
+    - __class_fullname__: CoarseDropout
+      p: 1.00
+      max_holes: 1
+      max_height: 48
+      max_width: 48
     - __class_fullname__: ToTensorV2
       p: 1
   bbox_params:

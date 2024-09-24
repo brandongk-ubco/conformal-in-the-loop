@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 from ..ConformalClassifier import ConformalClassifier
-
+from ..losses.FocalLoss import FocalLoss
 
 class CITLClassifier(L.LightningModule):
     def __init__(
@@ -49,7 +49,7 @@ class CITLClassifier(L.LightningModule):
         self.method = method
         self.examples_without_uncertainty = {}
         self.test_results = []
-        self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+        self.loss = FocalLoss("multiclass", reduction="none", from_logits=True)
 
     def forward(self, x):
         if x.dim() == 2:

@@ -40,7 +40,7 @@ def train(
     lr_method: str = "plateau",
     lr: float = 1e-4,
     method="score",
-    pretrained=False,
+    pretrained: bool=True,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
