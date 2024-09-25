@@ -111,8 +111,8 @@ class CITLClassifier(L.LightningModule):
         loss = self.loss(y_hat, y)
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
-            loss_weights = prediction_set_size
-            # loss_weights = loss_weights / loss_weights.mean()
+            loss_weights = prediction_set_size.float()
+            loss_weights = loss_weights / loss_weights.mean()
             loss = loss * loss_weights
 
             y_flt = y.flatten()
