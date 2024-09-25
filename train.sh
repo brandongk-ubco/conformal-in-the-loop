@@ -36,12 +36,12 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/celeba.yaml" \
 #     "--lr-method=plateau"
 
-# python -m citl train CIFAR10UB mnasnet_small \
-#     "--augmentation-policy-path=./policies/cifar10.yaml" \
-#     "--no-selectively-backpropagate" \
-#     "--alpha=0.10" \
-#     "--lr-method=plateau" \
-#     "--method=score"
+python -m citl train CIFAR10UB mnasnet_small \
+    "--augmentation-policy-path=./policies/cifar10.yaml" \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
 
 # python -m citl train DFire mnasnet_small \
 #     "--augmentation-policy-path=./policies/DFire.yaml" \

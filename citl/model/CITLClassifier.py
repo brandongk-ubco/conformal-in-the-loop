@@ -112,6 +112,7 @@ class CITLClassifier(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss_weights = prediction_set_size
+            loss_weights = loss_weights / loss_weights.mean()
             loss = loss * loss_weights
 
             y_flt = y.flatten()
@@ -251,6 +252,7 @@ class CITLClassifier(L.LightningModule):
 
     def on_test_epoch_start(self):
         self.test_accuracy.reset()
+        self.test_results = []
 
     def test_step(self, batch, batch_idx):
         x, y, attributes = batch
