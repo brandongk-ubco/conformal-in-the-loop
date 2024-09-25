@@ -45,8 +45,8 @@ class CITLClassifier(L.LightningModule):
         self.lr = lr
         self.lr_method = lr_method
         self.method = method
-        # self.loss = FocalLoss(reduction="none")
-        self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+        self.loss = FocalLoss(reduction="none")
+        # self.loss = torch.nn.CrossEntropyLoss(reduction="none")
 
     def forward(self, x):
         if x.dim() == 2:
@@ -112,7 +112,7 @@ class CITLClassifier(L.LightningModule):
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
             loss_weights = prediction_set_size
-            loss_weights = loss_weights / loss_weights.mean()
+            # loss_weights = loss_weights / loss_weights.mean()
             loss = loss * loss_weights
 
             y_flt = y.flatten()
