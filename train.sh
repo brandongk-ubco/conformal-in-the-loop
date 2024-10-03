@@ -24,9 +24,9 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/cifar10.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--lr-method=plateau"
+# python -m citl standardtrain CityscapesFine efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--lr-method=plateau"
 
 # # NORMAL BACKPROP BASELINES
 
@@ -50,12 +50,12 @@ python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--lr-method=plateau" \
 #     "--method=score"
 
-# python -m citl train CityscapesFine efficientnet-b0 \
-#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
-#     "--no-selectively-backpropagate" \
-#     "--alpha=0.10" \
-#     "--lr-method=plateau" \
-#     "--method=score"
+python -m citl train CityscapesFine efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--no-selectively-backpropagate" \
+    "--alpha=0.10" \
+    "--lr-method=plateau" \
+    "--method=score"
 
 # # METHOD ALPHA SWEEP
 
