@@ -24,9 +24,9 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/cifar10.yaml" \
 #     "--lr-method=plateau"
 
-# python -m citl standardtrain CityscapesFine efficientnet-b0 \
-#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
-#     "--lr-method=plateau"
+python -m citl standardtrain CityscapesFine efficientnet-b0 \
+    "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    "--lr-method=plateau"
 
 # # NORMAL BACKPROP BASELINES
 
