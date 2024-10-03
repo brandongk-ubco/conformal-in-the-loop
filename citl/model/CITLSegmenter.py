@@ -76,14 +76,8 @@ class CITLSegmenter(L.LightningModule):
 
         return y_hat
 
-    def on_train_start(self) -> None:
-        self.initial_train_set = self.trainer.train_dataloader.dataset
-        self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
-
     def on_train_epoch_start(self) -> None:
         self.jaccard.reset()
-        current_train_size = float(len(self.trainer.train_dataloader.dataset))
-        self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
