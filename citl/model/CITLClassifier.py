@@ -154,7 +154,6 @@ class CITLClassifier(L.LightningModule):
                 weight,
                 on_step=False,
                 on_epoch=True,
-                sync_dist=True,
             )
             self.log(
                 f"count_{label}",
@@ -162,7 +161,6 @@ class CITLClassifier(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
-                sync_dist=True,
             )
             self.log(
                 f"weight_{label}",
@@ -170,7 +168,6 @@ class CITLClassifier(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
-                sync_dist=True,
             )
 
         weight_max = max(weights.values())
@@ -182,7 +179,6 @@ class CITLClassifier(L.LightningModule):
             on_step=False,
             on_epoch=True,
             logger=True,
-            sync_dist=True,
         )
         self.log(
             "weight_min",
@@ -190,7 +186,6 @@ class CITLClassifier(L.LightningModule):
             on_step=False,
             on_epoch=True,
             logger=True,
-            sync_dist=True,
         )
         self.log(
             "weight_range",
@@ -198,7 +193,6 @@ class CITLClassifier(L.LightningModule):
             on_step=False,
             on_epoch=True,
             logger=True,
-            sync_dist=True,
         )
 
         weights_df = pd.DataFrame([weights]).T
@@ -242,7 +236,7 @@ class CITLClassifier(L.LightningModule):
 
         val_loss = self.loss(y_hat, y).mean()
         self.val_accuracy.update(y_hat, y)
-        self.log("val_loss", val_loss, sync_dist=True)
+        self.log("val_loss", val_loss)
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
@@ -253,7 +247,7 @@ class CITLClassifier(L.LightningModule):
                 f"quantile_{k}": v.detach().cpu().numpy().tolist()
                 for k, v in quantiles.items()
             }
-            self.log_dict(quantiles, prog_bar=False, sync_dist=True)
+            self.log_dict(quantiles, prog_bar=False)
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -263,11 +257,11 @@ class CITLClassifier(L.LightningModule):
             metrics = dict(
                 [(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()]
             )
-            self.log_dict(metrics, prog_bar=True, sync_dist=True)
+            self.log_dict(metrics, prog_bar=True)
 
     def on_validation_epoch_end(self):
         accs = self.val_accuracy.compute()
-        self.log("val_accuracy", torch.mean(accs), prog_bar=True, sync_dist=True)
+        self.log("val_accuracy", torch.mean(accs), prog_bar=True)
         self.log_dict(
             dict(
                 zip(
@@ -275,7 +269,6 @@ class CITLClassifier(L.LightningModule):
                     accs,
                 )
             ),
-            sync_dist=True,
         )
 
     def on_test_epoch_start(self):
@@ -300,7 +293,6 @@ class CITLClassifier(L.LightningModule):
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
         )
 
         probabilities = torch.softmax(y_hat, dim=1)
@@ -319,7 +311,6 @@ class CITLClassifier(L.LightningModule):
             test_loss,
             on_step=False,
             on_epoch=True,
-            sync_dist=True,
         )
 
     def on_test_epoch_end(self):

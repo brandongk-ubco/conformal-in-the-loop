@@ -138,7 +138,6 @@ class Segmenter(L.LightningModule):
             val_loss,
             on_step=False,
             on_epoch=True,
-            sync_dist=True,
         )
 
     def on_validation_epoch_end(self):
@@ -149,7 +148,6 @@ class Segmenter(L.LightningModule):
             prog_bar=True,
             on_step=False,
             on_epoch=True,
-            sync_dist=True,
         )
         self.log_dict(
             dict(
@@ -160,7 +158,6 @@ class Segmenter(L.LightningModule):
             ),
             on_step=False,
             on_epoch=True,
-            sync_dist=True,
         )
 
     def on_test_epoch_start(self) -> None:
@@ -179,7 +176,6 @@ class Segmenter(L.LightningModule):
             test_loss,
             on_step=False,
             on_epoch=True,
-            sync_dist=True,
         )
 
     def on_test_epoch_end(self):

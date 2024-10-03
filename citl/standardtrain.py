@@ -122,7 +122,6 @@ def standardtrain(
         deterministic=True,
         callbacks=callbacks,
         log_every_n_steps=10,
-        strategy="ddp_find_unused_parameters_true",
     )
 
     trainer.fit(model=model, datamodule=datamodule)

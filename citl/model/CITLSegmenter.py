@@ -164,7 +164,6 @@ class CITLSegmenter(L.LightningModule):
                 weight,
                 on_step=False,
                 on_epoch=True,
-                sync_dist=True,
             )
             self.log(
                 f"count_{label}",
@@ -172,7 +171,6 @@ class CITLSegmenter(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
-                sync_dist=True,
             )
             self.log(
                 f"weight_{label}",
@@ -180,16 +178,15 @@ class CITLSegmenter(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
-                sync_dist=True,
             )
 
         weight_max = max(weights.values())
         weight_min = min(weights.values())
         weight_range = max(weights.values()) - min(weights.values())
-        self.log("weight_max", weight_max, on_step=False, on_epoch=True, sync_dist=True)
-        self.log("weight_min", weight_min, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("weight_max", weight_max, on_step=False, on_epoch=True)
+        self.log("weight_min", weight_min, on_step=False, on_epoch=True)
         self.log(
-            "weight_range", weight_range, on_step=False, on_epoch=True, sync_dist=True
+            "weight_range", weight_range, on_step=False, on_epoch=True
         )
 
         weights_df = pd.DataFrame([weights]).T
@@ -246,10 +243,10 @@ class CITLSegmenter(L.LightningModule):
             metrics = dict(
                 [(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()]
             )
-            self.log_dict(metrics, on_epoch=True, on_step=False, sync_dist=True)
+            self.log_dict(metrics, on_epoch=True, on_step=False)
 
         self.val_jaccard.update(y_hat, y)
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
         jacs = self.val_jaccard.compute()
@@ -258,7 +255,6 @@ class CITLSegmenter(L.LightningModule):
             torch.mean(jacs[1:]),
             on_epoch=True,
             on_step=False,
-            sync_dist=True,
             prog_bar=True,
         )
         self.log_dict(
@@ -270,7 +266,6 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_epoch=True,
             on_step=False,
-            sync_dist=True,
         )
 
         quantiles = self.conformal_classifier.quantiles
@@ -279,7 +274,7 @@ class CITLSegmenter(L.LightningModule):
             for k, v in quantiles.items()
         }
         self.log_dict(
-            quantiles, prog_bar=False, on_epoch=True, on_step=False, sync_dist=True
+            quantiles, prog_bar=False, on_epoch=True, on_step=False
         )
 
     def on_test_epoch_start(self) -> None:
@@ -298,11 +293,11 @@ class CITLSegmenter(L.LightningModule):
         metrics = dict(
             [(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()]
         )
-        self.log_dict(metrics, on_epoch=True, on_step=False, sync_dist=True)
+        self.log_dict(metrics, on_epoch=True, on_step=False)
 
         self.test_jaccard.update(y_hat, y)
 
-        self.log("test_loss", test_loss, on_epoch=True, on_step=False, sync_dist=True)
+        self.log("test_loss", test_loss, on_epoch=True, on_step=False)
 
     def on_test_epoch_end(self):
         jacs = self.test_jaccard.compute()
@@ -311,7 +306,6 @@ class CITLSegmenter(L.LightningModule):
             torch.mean(jacs[1:]),
             on_epoch=True,
             on_step=False,
-            sync_dist=True,
         )
         self.log_dict(
             dict(
@@ -322,7 +316,6 @@ class CITLSegmenter(L.LightningModule):
             ),
             on_epoch=True,
             on_step=False,
-            sync_dist=True,
         )
 
     def configure_optimizers(self):
