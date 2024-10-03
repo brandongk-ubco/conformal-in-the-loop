@@ -165,13 +165,14 @@ class CITLSegmenter(L.LightningModule):
             label = self.trainer.datamodule.classes[k]
             weight = float(self.class_weights[k] / self.class_counts[k])
             weights[label] = weight
-            self.log(f"mean_weight_{label}", weight, on_step=False, on_epoch=True)
+            self.log(f"mean_weight_{label}", weight, on_step=False, on_epoch=True, sync_dist=True)
             self.log(
                 f"count_{label}",
                 self.class_counts[k],
                 on_step=False,
                 on_epoch=True,
                 logger=True,
+                sync_dist=True
             )
             self.log(
                 f"weight_{label}",
@@ -179,6 +180,7 @@ class CITLSegmenter(L.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
+                sync_dist=True
             )
 
         weight_max = max(weights.values())
