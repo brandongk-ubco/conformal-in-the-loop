@@ -184,10 +184,10 @@ class CITLSegmenter(L.LightningModule):
         weight_max = max(weights.values())
         weight_min = min(weights.values())
         weight_range = max(weights.values()) - min(weights.values())
-        self.log("weight_max", weight_max, on_step=False, on_epoch=True, logger=True)
-        self.log("weight_min", weight_min, on_step=False, on_epoch=True, logger=True)
+        self.log("weight_max", weight_max, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("weight_min", weight_min, on_step=False, on_epoch=True, sync_dist=True)
         self.log(
-            "weight_range", weight_range, on_step=False, on_epoch=True, logger=True
+            "weight_range", weight_range, on_step=False, on_epoch=True, sync_dist=True
         )
 
         weights_df = pd.DataFrame([weights]).T
