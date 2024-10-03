@@ -146,6 +146,7 @@ class Segmenter(L.LightningModule):
         self.log(
             "val_jaccard",
             torch.mean(jacs[1:]),
+            prog_bar=True,
             on_step=False,
             on_epoch=True,
             sync_dist=True,

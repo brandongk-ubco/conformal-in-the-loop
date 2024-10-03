@@ -235,12 +235,6 @@ class CITLSegmenter(L.LightningModule):
             self.conformal_classifier.append(y_hat, y, percentage=0.1)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.fit(alphas=set([self.alpha]))
-            quantiles = self.conformal_classifier.quantiles
-            quantiles = {
-                f"quantile_{k}": v.detach().cpu().numpy().tolist()
-                for k, v in quantiles.items()
-            }
-            self.log_dict(quantiles, prog_bar=False)
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
@@ -250,22 +244,30 @@ class CITLSegmenter(L.LightningModule):
             metrics = dict(
                 [(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()]
             )
-            self.log_dict(metrics, prog_bar=True)
+            self.log_dict(metrics, on_epoch=True, on_step=False, sync_dist=True)
 
         self.val_jaccard.update(y_hat, y)
-        self.log("val_loss", val_loss, on_step=False, on_epoch=True)
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True, sync_dist=True)
 
     def on_validation_epoch_end(self):
         jacs = self.val_jaccard.compute()
-        self.log("val_jaccard", torch.mean(jacs[1:]))
+        self.log("val_jaccard", torch.mean(jacs[1:]), on_epoch=True, on_step=False, sync_dist=True, prog_bar=True)
         self.log_dict(
             dict(
                 zip(
                     [f"val_jaccard_{c}" for c in self.trainer.datamodule.classes[1:]],
                     jacs[1:],
                 )
-            )
+            ),
+            on_epoch=True, on_step=False, sync_dist=True
         )
+
+        quantiles = self.conformal_classifier.quantiles
+        quantiles = {
+            f"quantile_{k}": v.detach().cpu().numpy().tolist()
+            for k, v in quantiles.items()
+        }
+        self.log_dict(quantiles, prog_bar=False, on_epoch=True, on_step=False, sync_dist=True)
 
     def on_test_epoch_start(self) -> None:
         self.test_jaccard.reset()
@@ -284,23 +286,24 @@ class CITLSegmenter(L.LightningModule):
             [(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()]
         )
         self.log_dict(
-            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
+            metrics, on_epoch=True, on_step=False, sync_dist=True
         )
 
         self.test_jaccard.update(y_hat, y)
 
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+        self.log("test_loss", test_loss, on_epoch=True, on_step=False, sync_dist=True)
 
     def on_test_epoch_end(self):
         jacs = self.test_jaccard.compute()
-        self.log("test_jaccard", torch.mean(jacs[1:]))
+        self.log("test_jaccard", torch.mean(jacs[1:]), on_epoch=True, on_step=False, sync_dist=True)
         self.log_dict(
             dict(
                 zip(
                     [f"test_jaccard{c}" for c in self.trainer.datamodule.classes[1:]],
                     jacs[1:],
                 )
-            )
+            ),
+            on_epoch=True, on_step=False, sync_dist=True
         )
 
     def configure_optimizers(self):
