@@ -30,7 +30,8 @@ def standardtrain(
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",
     lr: float = 5e-4,
-    noise_level: float = 0.0
+    noise_level: float = 0.0,
+    loss_function: str = "cross_entropy",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -64,6 +65,7 @@ def standardtrain(
         num_classes=datamodule.num_classes,
         lr_method=lr_method,
         lr=lr,
+        loss_function=loss_function,
     )
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
@@ -92,6 +94,7 @@ def standardtrain(
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
         trainer_logger.experiment["sys/tags"].add("Standard")
+        trainer_logger.experiment["sys/tags"].add(loss_function)
 
     model_callback_config = {
         "filename": "{epoch}-{val_loss:.3f}",
