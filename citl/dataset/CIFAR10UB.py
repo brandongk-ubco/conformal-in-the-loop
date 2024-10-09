@@ -133,7 +133,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
 
         if stage == "test" or stage is None:
             self.cifar_test = CIFAR10(
-                self.data_dir, train=False, transform=self.transform
+                self.data_dir, train=False, transform=self.transform, noise_level=0.0
             )
             self.cifar_test.set_indices([], range(len(self.cifar_test)))
 
