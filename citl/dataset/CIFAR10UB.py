@@ -69,7 +69,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         augmentation_policy_path,
         batch_size: int = 128,
         data_dir: str = PATH_DATASETS,
-        noise_level: float = 0.3,
+        noise_level: float = 0.0,
     ):
         super().__init__()
 

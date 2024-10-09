@@ -30,12 +30,13 @@ def standardtrain(
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",
     lr: float = 5e-4,
+    noise_level: float = 0.0
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
 
     assert os.path.exists(augmentation_policy_path)
-    datamodule = Dataset.get(dataset)(augmentation_policy_path)
+    datamodule = Dataset.get(dataset)(augmentation_policy_path, noise_level=noise_level)
 
     if datamodule.task == "classification":
         net = create_model(

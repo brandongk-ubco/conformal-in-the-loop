@@ -20,9 +20,16 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain CIFAR10UB mnasnet_small \
-    "--augmentation-policy-path=./policies/cifar10.yaml" \
-    "--lr-method=plateau"
+levels=(0.1 0.2 0.3 0.4 0.5)
+
+for level in "${levels[@]}"
+do
+
+    python -m citl standardtrain CIFAR10UB mnasnet_small \
+        "--augmentation-policy-path=./policies/cifar10.yaml" \
+        "--noise-level=${level}" \
+        "--lr-method=plateau"
+done
 
 # python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
