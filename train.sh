@@ -24,9 +24,9 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/cifar10.yaml" \
 #     "--lr-method=plateau"
 
-python -m citl standardtrain CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--lr-method=plateau"
+# python -m citl standardtrain CityscapesFine efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--lr-method=plateau"
 
 # # NORMAL BACKPROP BASELINES
 
@@ -50,16 +50,16 @@ python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--lr-method=plateau" \
 #     "--method=score"
 
-python -m citl train CityscapesFine efficientnet-b0 \
-    "--augmentation-policy-path=./policies/cityscapes.yaml" \
-    "--no-selectively-backpropagate" \
-    "--alpha=0.10" \
-    "--lr-method=plateau" \
-    "--method=score"
+# python -m citl train CityscapesFine efficientnet-b0 \
+#     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+#     "--no-selectively-backpropagate" \
+#     "--alpha=0.10" \
+#     "--lr-method=plateau" \
+#     "--method=score"
 
 # # METHOD ALPHA SWEEP
 
-numbers=(0.10 0.05 0.01)
+numbers=(0.10)
 
 for alpha in "${numbers[@]}"
 do
@@ -90,12 +90,12 @@ do
     #     "--lr-method=plateau" \
     #     "--method=score"
 
-    python -m citl train CityscapesFine efficientnet-b0 \
-        "--augmentation-policy-path=./policies/cityscapes.yaml" \
-        "--selectively-backpropagate" \
-        "--alpha=${alpha}" \
-        "--lr-method=plateau" \
-        "--method=score"
+    # python -m citl train CityscapesFine efficientnet-b0 \
+    #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
+    #     "--selectively-backpropagate" \
+    #     "--alpha=${alpha}" \
+    #     "--lr-method=plateau" \
+    #     "--method=score"
 done
 
 
