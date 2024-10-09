@@ -89,7 +89,6 @@ def standardtrain(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
-        trainer_logger.experiment["parameters/greysacale"] = greyscale
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["parameters/loss_function"] = loss_function
         trainer_logger.experiment["parameters/noise_level"] = noise_level

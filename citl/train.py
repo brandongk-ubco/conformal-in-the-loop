@@ -33,7 +33,6 @@ logging.getLogger("neptune").setLevel(logging.CRITICAL)
 def train(
     dataset: Dataset,
     model_name: str,
-    greyscale: bool = False,
     augmentation_policy_path: str = "./policies/noop.yaml",
     selectively_backpropagate: bool = False,
     alpha: float = 0.10,
@@ -65,9 +64,6 @@ def train(
             in_channels=3,
             classes=datamodule.num_classes,
         )
-
-    if greyscale:
-        net = nn.Sequential(nn.Conv2d(1, 3, 1), net)
 
     if datamodule.task == "classification":
         model = CITLClassifier
@@ -108,8 +104,6 @@ def train(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
-        trainer_logger.experiment["parameters/greysacale"] = greyscale
-        trainer_logger.experiment["parameters/augmentation_policy"] = policy
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
         trainer_logger.experiment["sys/tags"].add(
