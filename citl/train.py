@@ -38,9 +38,9 @@ def train(
     selectively_backpropagate: bool = False,
     alpha: float = 0.10,
     lr_method: str = "plateau",
-    lr: float = 1e-4,
+    lr: float = 5e-4,
     method="score",
-    pretrained: bool=True,
+    pretrained: bool = True,
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -119,13 +119,25 @@ def train(
             "Pretrained" if pretrained else "Scratch"
         )
 
-    model_callback_config = {
-        "filename": "{epoch}-{val_accuracy:.3f}",
-        "monitor": "val_accuracy",
-        "mode": "max",
-        "save_top_k": 1,
-        "save_last": True,
-    }
+    if datamodule.task == "classification":
+        model_callback_config = {
+            "filename": "{epoch}-{val_accuracy:.3f}",
+            "monitor": "val_accuracy",
+            "mode": "max",
+            "save_top_k": 1,
+            "save_last": True,
+        }
+    elif datamodule.task == "segmentation":
+        model_callback_config = {
+            "filename": "{epoch}-{val_jaccard:.3f}",
+            "monitor": "val_jaccard",
+            "mode": "max",
+            "save_top_k": 1,
+            "save_last": True,
+        }
+    else:
+        raise ValueError("Unknown task")
+
     if trainer_logger.log_dir:
         model_callback_config["dirpath"] = os.path.join(
             trainer_logger.log_dir, "checkpoints"
@@ -135,7 +147,9 @@ def train(
         LearningRateMonitor(logging_interval="step"),
         ModelCheckpoint(**model_callback_config),
         EarlyStopping(
-            monitor="val_accuracy",
+            monitor=(
+                "val_accuracy" if datamodule.task == "classification" else "val_jaccard"
+            ),
             mode="max",
             patience=20,
         ),

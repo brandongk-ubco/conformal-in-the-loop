@@ -36,7 +36,7 @@ python -m citl standardtrain CIFAR10UB mnasnet_small \
 #     "--augmentation-policy-path=./policies/celeba.yaml" \
 #     "--lr-method=plateau"
 
-# python -m citl train CIFAR10 mnasnet_small \
+# python -m citl train CIFAR10UB mnasnet_small \
 #     "--augmentation-policy-path=./policies/cifar10.yaml" \
 #     "--no-selectively-backpropagate" \
 #     "--alpha=0.10" \
@@ -59,16 +59,22 @@ python -m citl standardtrain CIFAR10UB mnasnet_small \
 
 # # METHOD ALPHA SWEEP
 
-numbers=(0.01)
+numbers=(0.10)
 
 for alpha in "${numbers[@]}"
 do
 
-    python -m citl train CelebA resnet18 \
-        "--selectively-backpropagate" \
-        "--alpha=${alpha}" \
-        "--augmentation-policy-path=./policies/celeba.yaml" \
-        "--lr-method=plateau"
+    # python -m citl train CIFAR10UB mnasnet_small \
+    #     "--augmentation-policy-path=./policies/cifar10.yaml" \
+    #     "--selectively-backpropagate" \
+    #     "--alpha=${alpha}" \
+    #     "--lr-method=plateau"
+
+    # python -m citl train CelebA resnet18 \
+    #     "--selectively-backpropagate" \
+    #     "--alpha=${alpha}" \
+    #     "--augmentation-policy-path=./policies/celeba.yaml" \
+    #     "--lr-method=plateau"
 
     # python -m citl train DFire mnasnet_small \
     #     "--augmentation-policy-path=./policies/DFire.yaml" \

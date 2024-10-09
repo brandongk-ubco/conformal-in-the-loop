@@ -1,6 +1,7 @@
 import os
 import random
 from typing import Any, Tuple
+
 import albumentations as A
 import pytorch_lightning as L
 import torch
@@ -13,16 +14,24 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 class CIFAR10(BaseDataset):
     def __init__(self, *args, **kwargs):
+        self.noise_level = kwargs.pop("noise_level")
         super().__init__(*args, **kwargs)
         self.augment_indices = {}
         self.augments = None
+        self.num_classes = 10
 
     def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
         for index in train_indices:
             self.augment_indices[index] = True
+            self.targets[index] = self.add_noise_to_labels(self.targets[index])
 
         for index in val_indices:
             self.augment_indices[index] = False
+
+    def add_noise_to_labels(self, label: int) -> int:
+        if random.random() < self.noise_level:
+            return random.randint(0, self.num_classes - 1)
+        return label
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, target = self.data[index], self.targets[index]
@@ -60,6 +69,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         augmentation_policy_path,
         batch_size: int = 128,
         data_dir: str = PATH_DATASETS,
+        noise_level: float = 0.3,
     ):
         super().__init__()
 
@@ -68,18 +78,23 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.num_classes = 10
         self.batch_size = batch_size
+        self.noise_level = noise_level
 
         self.image_size = 224
 
         self.transform = v2.Compose(
             [
                 v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
-                v2.Resize(self.image_size, max_size=self.image_size + 1, antialias=False),
+                v2.Resize(
+                    self.image_size, max_size=self.image_size + 1, antialias=False
+                ),
                 v2.CenterCrop(self.image_size),
             ]
         )
 
-    def reduce_samples_for_imbalance(self, dataset, reduce_classes: list[int], reduce_fraction: float):
+    def reduce_samples_for_imbalance(
+        self, dataset, reduce_classes: list[int], reduce_fraction: float
+    ):
         """Reduces the samples in the specified classes by the given fraction."""
         indices_to_keep = []
         for i, (img, target) in enumerate(zip(dataset.data, dataset.targets)):
@@ -88,21 +103,31 @@ class CIFAR10UBDataModule(L.LightningDataModule):
                     indices_to_keep.append(i)
             else:
                 indices_to_keep.append(i)
-        
+
         dataset.data = dataset.data[indices_to_keep]
         dataset.targets = [dataset.targets[i] for i in indices_to_keep]
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            cifar_full = CIFAR10(self.data_dir, train=True, download = True, transform=self.transform)
-            reduce_classes = [0, 1]  
-            self.reduce_samples_for_imbalance(cifar_full, reduce_classes, reduce_fraction=0.2)
+            cifar_full = CIFAR10(
+                self.data_dir,
+                train=True,
+                download=True,
+                transform=self.transform,
+                noise_level=self.noise_level,
+            )
+            reduce_classes = [0, 1]
+            self.reduce_samples_for_imbalance(
+                cifar_full, reduce_classes, reduce_fraction=0.2
+            )
             dataset_length = len(cifar_full)
 
             train_size = int(0.9 * dataset_length)
             val_size = dataset_length - train_size
 
-            self.cifar_train, self.cifar_val = random_split(cifar_full, [train_size, val_size])
+            self.cifar_train, self.cifar_val = random_split(
+                cifar_full, [train_size, val_size]
+            )
             cifar_full.set_indices(self.cifar_train.indices, self.cifar_val.indices)
             cifar_full.augments = self.augments
 

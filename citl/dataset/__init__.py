@@ -21,7 +21,7 @@ class Dataset(str, Enum):
     def get(Dataset):
         if Dataset == "CIFAR10":
             return CIFAR10DataModule
-        elif Dataset == 'CIFAR10UB':
+        elif Dataset == "CIFAR10UB":
             return CIFAR10UBDataModule
         elif Dataset == "DFire":
             return DFireDataModule

@@ -29,10 +29,6 @@ def reduce_correct(example):
     return y_hat[y.int()].bool()
 
 
-def approximate_quantile(x, q):
-    return torch.quantile(x, q)
-
-
 class ConformalClassifier:
 
     def __init__(self, method="score", ignore_index=None):
@@ -60,7 +56,7 @@ class ConformalClassifier:
         if self.ignore_index is not None:
             mask = y != self.ignore_index
             y = y[mask]
-            y_hat = y_hat[mask][:, 1:] # TODO - this assume ignore_index is always 0, which is not true in general
+            y_hat = y_hat[mask]
 
         if torch.is_tensor(y_hat):
             y_hat = y_hat.softmax(axis=1)
@@ -86,7 +82,7 @@ class ConformalClassifier:
         num = scores.size()[0]
         self.quantiles = {}
         for alpha in alphas:
-            quantile = approximate_quantile(scores, (num + 1) * (1 - alpha) / num)
+            quantile = torch.quantile(scores, (num + 1) * (1 - alpha) / num)
             self.quantiles[alpha] = 1 - quantile
 
         self.cp_examples = []

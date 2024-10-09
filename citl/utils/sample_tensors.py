@@ -8,7 +8,7 @@ def sample_tensors(t1, t2, percentage=1.0):
     assert t1.shape[0] == t2.numel()
     num_samples = int(percentage * count)
     num_samples = min(num_samples, count)
-    sample_idx = torch.randperm(num_samples)[:num_samples]
+    sample_idx = torch.randperm(count)[:num_samples]
     return t1[sample_idx], t2[sample_idx]
 
 

@@ -126,7 +126,7 @@ class CIFAR10DataModule(L.LightningDataModule):
         return DataLoader(
             self.cifar_val,
             num_workers=os.cpu_count(),
-            shuffle=False,
+            shuffle=True,
             batch_size=self.batch_size,
             persistent_workers=True,
         )
@@ -135,7 +135,7 @@ class CIFAR10DataModule(L.LightningDataModule):
         return DataLoader(
             self.cifar_test,
             num_workers=os.cpu_count(),
-            shuffle=False,
+            shuffle=True,
             batch_size=self.batch_size,
             persistent_workers=True,
         )

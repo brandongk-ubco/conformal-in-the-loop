@@ -6,8 +6,10 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
+
 from ..ConformalClassifier import ConformalClassifier
 from ..losses.FocalLoss import FocalLoss
+
 
 class CITLClassifier(L.LightningModule):
     def __init__(
@@ -16,14 +18,14 @@ class CITLClassifier(L.LightningModule):
         num_classes,
         selectively_backpropagate=False,
         alpha=0.10,
-        val_alpha=0.10,
         lr=1e-3,
         lr_method="plateau",
         method="score",
+        loss_function="cross_entropy",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
-        self.model = torch.nn.Sequential(torch.nn.InstanceNorm2d(3), model)
+        self.model = model
 
         self.conformal_classifier = ConformalClassifier(method=method)
 
@@ -41,15 +43,16 @@ class CITLClassifier(L.LightningModule):
 
         self.selectively_backpropagate = selectively_backpropagate
         self.alpha = alpha
-        self.val_alpha = val_alpha
         self.lr = lr
-        self.pixel_dropout = 0.0
         self.lr_method = lr_method
-        self.weight_decay = 0.0
         self.method = method
-        self.examples_without_uncertainty = {}
-        self.test_results = []
-        self.loss = FocalLoss("multiclass", reduction="none", from_logits=True)
+
+        if loss_function == "cross_entropy":
+            self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+        elif loss_function == "focal":
+            self.loss = FocalLoss(reduction="none")
+        else:
+            raise ValueError("Loss function not implemented")
 
     def forward(self, x):
         if x.dim() == 2:
@@ -67,14 +70,10 @@ class CITLClassifier(L.LightningModule):
         return y_hat
 
     def on_train_start(self) -> None:
-        self.initial_train_set = self.trainer.train_dataloader.dataset
-        self.initial_train_size = float(len(self.trainer.train_dataloader.dataset))
         self.conformal_classifier.reset()
 
     def on_train_epoch_start(self) -> None:
         self.accuracy.reset()
-        current_train_size = float(len(self.trainer.train_dataloader.dataset))
-        self.log("Train Dataset Size", current_train_size / self.initial_train_size)
         self.class_weights = dict(
             zip(range(self.num_classes), [0.0] * self.num_classes)
         )
@@ -115,21 +114,11 @@ class CITLClassifier(L.LightningModule):
             metrics, on_step=True, on_epoch=False, prog_bar=False, logger=True
         )
 
-        uncertain = uncertainty["uncertain"]
-
-        for i, idx in enumerate(indeces.detach().cpu().numpy()):
-            if uncertain[i]:
-                self.examples_without_uncertainty[idx] = 0
-            else:
-                if idx in self.examples_without_uncertainty:
-                    self.examples_without_uncertainty[idx] += 1
-                else:
-                    self.examples_without_uncertainty[idx] = 1
-
         loss = self.loss(y_hat, y)
         if self.selectively_backpropagate:
             prediction_set_size = uncertainty["prediction_set_size"].reshape(y.shape)
-            loss_weights = prediction_set_size
+            loss_weights = prediction_set_size.float()
+            loss_weights = loss_weights / loss_weights.mean()
             loss = loss * loss_weights
 
             y_flt = y.flatten()
@@ -166,7 +155,12 @@ class CITLClassifier(L.LightningModule):
             label = self.trainer.datamodule.classes[k]
             weight = float(self.class_weights[k] / self.class_counts[k])
             weights[label] = weight
-            self.log(f"mean_weight_{label}", weight, on_step=False, on_epoch=True)
+            self.log(
+                f"mean_weight_{label}",
+                weight,
+                on_step=False,
+                on_epoch=True,
+            )
             self.log(
                 f"count_{label}",
                 self.class_counts[k],
@@ -185,10 +179,26 @@ class CITLClassifier(L.LightningModule):
         weight_max = max(weights.values())
         weight_min = min(weights.values())
         weight_range = max(weights.values()) - min(weights.values())
-        self.log("weight_max", weight_max, on_step=False, on_epoch=True, logger=True)
-        self.log("weight_min", weight_min, on_step=False, on_epoch=True, logger=True)
         self.log(
-            "weight_range", weight_range, on_step=False, on_epoch=True, logger=True
+            "weight_max",
+            weight_max,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
+        )
+        self.log(
+            "weight_min",
+            weight_min,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
+        )
+        self.log(
+            "weight_range",
+            weight_range,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
         )
 
         weights_df = pd.DataFrame([weights]).T
@@ -231,11 +241,13 @@ class CITLClassifier(L.LightningModule):
         y_hat = self(x)
 
         val_loss = self.loss(y_hat, y).mean()
+        self.val_accuracy.update(y_hat, y)
+        self.log("val_loss", val_loss)
 
         if batch_idx < self.val_batch_idx_fit_uncertainty:
             self.conformal_classifier.append(y_hat, y)
         elif batch_idx == self.val_batch_idx_fit_uncertainty:
-            self.conformal_classifier.fit(alphas=set([self.alpha, self.val_alpha]))
+            self.conformal_classifier.fit(alphas=set([self.alpha]))
             quantiles = self.conformal_classifier.quantiles
             quantiles = {
                 f"quantile_{k}": v.detach().cpu().numpy().tolist()
@@ -245,16 +257,13 @@ class CITLClassifier(L.LightningModule):
         else:
             self.conformal_classifier.append(y_hat, y)
             _, uncertainty = self.conformal_classifier.measure_uncertainty(
-                alpha=self.val_alpha
+                alpha=self.alpha
             )
 
             metrics = dict(
                 [(f"val_{k}", v.float().mean()) for k, v in uncertainty.items()]
             )
             self.log_dict(metrics, prog_bar=True)
-
-        self.val_accuracy.update(y_hat, y)
-        self.log("val_loss", val_loss)
 
     def on_validation_epoch_end(self):
         accs = self.val_accuracy.compute()
@@ -268,73 +277,9 @@ class CITLClassifier(L.LightningModule):
             ),
         )
 
-    # def test_step(self, batch, batch_idx):
-    #     x, y, _ = batch
-    #     y_hat = self(x)
-
-    #     test_loss = F.cross_entropy(y_hat, y)
-
-    #     self.conformal_classifier.append(y_hat, y)
-    #     conformal_sets, uncertainty = self.conformal_classifier.measure_uncertainty(
-    #         alpha=self.val_alpha
-    #     )
-
-    #     metrics = dict(
-    #         [(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()]
-    #     )
-    #     self.log_dict(
-    #         metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
-    #     )
-
-    #     for idx in range(x.shape[0]):
-    #         img, target = x[idx, :, :, :], y[idx]
-    #         if img.ndim > 2:
-    #             img = img.moveaxis(0, -1)
-    #         img = img - img.min()
-    #         img = img / img.max()
-    #         expected = self.trainer.datamodule.classes[target]
-
-    #         combined = list(zip(y_hat[idx], conformal_sets[idx], self.trainer.datamodule.classes))
-    #         filtered = [tup for tup in combined if tup[1]]
-
-    #         sorted_filtered = sorted(filtered, key=lambda x: -x[0])
-    #         labels = set([x[2] for x in sorted_filtered])
-    #         labels = str(labels).replace("'", "")
-
-    #         set_size = uncertainty["prediction_set_size"][idx].item()
-    #         correct = y_hat[idx].argmax().item() == target
-
-    #         if set_size == 0:
-    #             example_type = "atypical"
-    #         elif set_size == 1 and correct:
-    #             example_type = "realized"
-    #         elif set_size == 1 and not correct:
-    #             example_type = "confused"
-    #         elif set_size > 1:
-    #             example_type = "uncertain"
-    #         else:
-    #             raise ValueError(f"Unknown Set Size {set_size}")
-
-    #         fig = plt.figure()
-    #         plt.imshow(img.detach().cpu().numpy())
-    #         plt.title(f"Ground Truth: {expected}")
-    #         plt.suptitle(f"Predicted: {labels}")
-    #         plt.axis("off")
-    #         if type(self.trainer.logger) is TensorBoardLogger:
-    #             self.logger.experiment.add_figure(
-    #                 f"test_images_{example_type}", fig, self.global_step
-    #             )
-    #         elif type(self.trainer.logger) is NeptuneLogger:
-    #             self.logger.experiment[f"test/example_images/{example_type}"].append(fig)
-    #         plt.close()
-
-    #     self.accuracy(y_hat, y)
-    #     self.log("test_accuracy", self.accuracy, on_step=False, on_epoch=True)
-
-    #     self.log("test_loss", test_loss, on_step=False, on_epoch=True)
-
     def on_test_epoch_start(self):
         self.test_accuracy.reset()
+        self.test_results = []
 
     def test_step(self, batch, batch_idx):
         x, y, attributes = batch
@@ -343,15 +288,17 @@ class CITLClassifier(L.LightningModule):
         test_loss = self.loss(y_hat, y).mean()
 
         self.conformal_classifier.append(y_hat, y)
-        _, uncertainty = self.conformal_classifier.measure_uncertainty(
-            alpha=self.val_alpha
-        )
+        _, uncertainty = self.conformal_classifier.measure_uncertainty(alpha=self.alpha)
 
         metrics = dict(
             [(f"test_{k}", v.float().mean()) for k, v in uncertainty.items()]
         )
         self.log_dict(
-            metrics, on_step=False, on_epoch=True, prog_bar=False, logger=True
+            metrics,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
         )
 
         probabilities = torch.softmax(y_hat, dim=1)
@@ -365,7 +312,12 @@ class CITLClassifier(L.LightningModule):
             )
 
         self.test_accuracy.update(y_hat, y)
-        self.log("test_loss", test_loss, on_step=False, on_epoch=True)
+        self.log(
+            "test_loss",
+            test_loss,
+            on_step=False,
+            on_epoch=True,
+        )
 
     def on_test_epoch_end(self):
         df = pd.DataFrame(self.test_results)
@@ -396,7 +348,7 @@ class CITLClassifier(L.LightningModule):
                 mode="max",
                 factor=0.2,
                 patience=10,
-                min_lr=1e-7,
+                min_lr=1e-6,
                 verbose=True,
             )
             interval = "epoch"
