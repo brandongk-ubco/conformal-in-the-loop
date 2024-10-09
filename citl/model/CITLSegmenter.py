@@ -185,9 +185,7 @@ class CITLSegmenter(L.LightningModule):
         weight_range = max(weights.values()) - min(weights.values())
         self.log("weight_max", weight_max, on_step=False, on_epoch=True)
         self.log("weight_min", weight_min, on_step=False, on_epoch=True)
-        self.log(
-            "weight_range", weight_range, on_step=False, on_epoch=True
-        )
+        self.log("weight_range", weight_range, on_step=False, on_epoch=True)
 
         weights_df = pd.DataFrame([weights]).T
         weights_df = weights_df.reset_index()
@@ -273,9 +271,7 @@ class CITLSegmenter(L.LightningModule):
             f"quantile_{k}": v.detach().cpu().numpy().tolist()
             for k, v in quantiles.items()
         }
-        self.log_dict(
-            quantiles, prog_bar=False, on_epoch=True, on_step=False
-        )
+        self.log_dict(quantiles, prog_bar=False, on_epoch=True, on_step=False)
 
     def on_test_epoch_start(self) -> None:
         self.test_jaccard.reset()

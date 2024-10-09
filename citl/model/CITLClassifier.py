@@ -21,6 +21,7 @@ class CITLClassifier(L.LightningModule):
         lr=1e-3,
         lr_method="plateau",
         method="score",
+        loss_function="cross_entropy",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -45,8 +46,13 @@ class CITLClassifier(L.LightningModule):
         self.lr = lr
         self.lr_method = lr_method
         self.method = method
-        self.loss = FocalLoss(reduction="none")
-        # self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+
+        if loss_function == "cross_entropy":
+            self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+        elif loss_function == "focal":
+            self.loss = FocalLoss(reduction="none")
+        else:
+            raise ValueError("Loss function not implemented")
 
     def forward(self, x):
         if x.dim() == 2:

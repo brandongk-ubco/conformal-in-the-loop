@@ -7,13 +7,11 @@ from .CIFAR10UB import CIFAR10UBDataModule
 from .Cityscapes import CityscapesDataModule
 from .DFire import DFireDataModule
 from .MNIST import MNISTDataModule
-from .CIFAR10Noisy import CIFAR10NoisyDataModule
 
 
 class Dataset(str, Enum):
     CIFAR10 = "CIFAR10"
     CIFAR10UB = "CIFAR10UB"
-    CIFAR10Noisy = "CIFAR10Noisy"
     MNIST = "MNIST"
     CityscapesCoarse = "CityscapesCoarse"
     CityscapesFine = "CityscapesFine"
@@ -25,8 +23,6 @@ class Dataset(str, Enum):
             return CIFAR10DataModule
         elif Dataset == "CIFAR10UB":
             return CIFAR10UBDataModule
-        elif Dataset =='CIFAR10Noisy':
-            return CIFAR10NoisyDataModule
         elif Dataset == "DFire":
             return DFireDataModule
         elif Dataset == "MNIST":

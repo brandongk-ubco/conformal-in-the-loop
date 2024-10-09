@@ -14,16 +14,24 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", "./")
 
 class CIFAR10(BaseDataset):
     def __init__(self, *args, **kwargs):
+        self.noise_level = kwargs.pop("noise_level")
         super().__init__(*args, **kwargs)
         self.augment_indices = {}
         self.augments = None
+        self.num_classes = 10
 
     def set_indices(self, train_indices: list[int], val_indices: list[int]) -> None:
         for index in train_indices:
             self.augment_indices[index] = True
+            self.targets[index] = self.add_noise_to_labels(self.targets[index])
 
         for index in val_indices:
             self.augment_indices[index] = False
+
+    def add_noise_to_labels(self, label: int) -> int:
+        if random.random() < self.noise_level:
+            return random.randint(0, self.num_classes - 1)
+        return label
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         img, target = self.data[index], self.targets[index]
@@ -61,6 +69,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         augmentation_policy_path,
         batch_size: int = 128,
         data_dir: str = PATH_DATASETS,
+        noise_level: float = 0.3,
     ):
         super().__init__()
 
@@ -69,6 +78,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         self.data_dir = data_dir
         self.num_classes = 10
         self.batch_size = batch_size
+        self.noise_level = noise_level
 
         self.image_size = 224
 
@@ -100,7 +110,11 @@ class CIFAR10UBDataModule(L.LightningDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             cifar_full = CIFAR10(
-                self.data_dir, train=True, download=True, transform=self.transform
+                self.data_dir,
+                train=True,
+                download=True,
+                transform=self.transform,
+                noise_level=self.noise_level,
             )
             reduce_classes = [0, 1]
             self.reduce_samples_for_imbalance(

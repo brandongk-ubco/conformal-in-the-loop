@@ -10,6 +10,8 @@ from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
 from torchmetrics.classification.accuracy import Accuracy
 
+from ..losses.FocalLoss import FocalLoss
+
 
 class Classifier(L.LightningModule):
     def __init__(
@@ -18,6 +20,7 @@ class Classifier(L.LightningModule):
         num_classes,
         lr=1e-3,
         lr_method="plateau",
+        loss_function="cross_entropy",
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["model"])
@@ -36,6 +39,13 @@ class Classifier(L.LightningModule):
 
         self.lr = lr
         self.lr_method = lr_method
+
+        if loss_function == "cross_entropy":
+            self.loss = torch.nn.CrossEntropyLoss(reduction="none")
+        elif loss_function == "focal":
+            self.loss = FocalLoss(reduction="none")
+        else:
+            raise ValueError("Loss function not implemented")
 
     def forward(self, x):
         if x.dim() == 2:
@@ -60,7 +70,7 @@ class Classifier(L.LightningModule):
 
         y_hat = self(x)
 
-        loss = F.cross_entropy(y_hat, y, reduction="none").mean()
+        loss = self.loss(y_hat, y).mean()
 
         accs = self.accuracy(y_hat, y)
         self.log("accuracy", torch.mean(accs))
@@ -83,7 +93,7 @@ class Classifier(L.LightningModule):
         x, y, _ = batch
         y_hat = self(x)
 
-        val_loss = F.cross_entropy(y_hat, y)
+        val_loss = self.loss(y_hat, y).mean()
 
         self.val_accuracy.update(y_hat, y)
 
@@ -109,7 +119,7 @@ class Classifier(L.LightningModule):
         y_hat = self(x)
 
         self.test_accuracy.update(y_hat, y)
-        test_loss = F.cross_entropy(y_hat, y)
+        test_loss = self.loss(y_hat, y).mean()
         self.log("test_loss", test_loss, on_step=False, on_epoch=True)
 
     def on_test_epoch_end(self):
