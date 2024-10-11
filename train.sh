@@ -25,9 +25,16 @@ levels=(0.0 0.1 0.2 0.3 0.4 0.5)
 for level in "${levels[@]}"
 do
 
+    # python -m citl standardtrain CIFAR10UB mnasnet_small \
+    #     "--augmentation-policy-path=./policies/cifar10.yaml" \
+    #     "--noise-level=${level}" \
+    #     "--loss-function=cross_entropy" \
+    #     "--lr-method=plateau"
+
     python -m citl standardtrain CIFAR10UB mnasnet_small \
         "--augmentation-policy-path=./policies/cifar10.yaml" \
         "--noise-level=${level}" \
+        "--loss-function=focal" \
         "--lr-method=plateau"
 done
 
