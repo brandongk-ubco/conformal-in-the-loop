@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from pytorch_lightning.tuner import Tuner
 from timm import create_model
 from torch import nn
 

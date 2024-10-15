@@ -40,6 +40,8 @@ def train(
     lr: float = 5e-4,
     method="score",
     pretrained: bool = True,
+    noise_level: float = 0.0,
+    loss_function: str = "cross_entropy",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
@@ -49,7 +51,7 @@ def train(
         sys.exit(0)
 
     assert os.path.exists(augmentation_policy_path)
-    datamodule = Dataset.get(dataset)(augmentation_policy_path)
+    datamodule = Dataset.get(dataset)(augmentation_policy_path, noise_level=noise_level)
 
     if datamodule.task == "classification":
         net = create_model(
@@ -80,6 +82,7 @@ def train(
         lr_method=lr_method,
         lr=lr,
         method=method,
+        loss_function=loss_function,
     )
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
@@ -104,8 +107,12 @@ def train(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
+        trainer_logger.experiment["parameters/augmentation_policy"] = policy
+        trainer_logger.experiment["parameters/loss_function"] = loss_function
+        trainer_logger.experiment["parameters/noise_level"] = noise_level
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
+        trainer_logger.experiment["sys/tags"].add(loss_function)
         trainer_logger.experiment["sys/tags"].add(
             "Baseline" if not selectively_backpropagate else "Method"
         )

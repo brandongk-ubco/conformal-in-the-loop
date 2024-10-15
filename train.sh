@@ -20,23 +20,23 @@ rm .*.ckpt || true
 #     "--augmentation-policy-path=./policies/DFire.yaml" \
 #     "--lr-method=plateau"
 
-levels=(0.0 0.1 0.2 0.3 0.4 0.5)
+# levels=(0.3 0.4 0.5)
 
-for level in "${levels[@]}"
-do
+# for level in "${levels[@]}"
+# do
 
-    # python -m citl standardtrain CIFAR10UB mnasnet_small \
-    #     "--augmentation-policy-path=./policies/cifar10.yaml" \
-    #     "--noise-level=${level}" \
-    #     "--loss-function=cross_entropy" \
-    #     "--lr-method=plateau"
+#     # python -m citl standardtrain CIFAR10UB mnasnet_small \
+#     #     "--augmentation-policy-path=./policies/cifar10.yaml" \
+#     #     "--noise-level=${level}" \
+#     #     "--loss-function=cross_entropy" \
+#     #     "--lr-method=plateau"
 
-    python -m citl standardtrain CIFAR10UB mnasnet_small \
-        "--augmentation-policy-path=./policies/cifar10.yaml" \
-        "--noise-level=${level}" \
-        "--loss-function=focal" \
-        "--lr-method=plateau"
-done
+#     python -m citl standardtrain CIFAR10UB mnasnet_small \
+#         "--augmentation-policy-path=./policies/cifar10.yaml" \
+#         "--noise-level=${level}" \
+#         "--loss-function=focal" \
+#         "--lr-method=plateau"
+# done
 
 # python -m citl standardtrain CityscapesFine efficientnet-b0 \
 #     "--augmentation-policy-path=./policies/cityscapes.yaml" \
@@ -73,16 +73,17 @@ done
 
 # # METHOD ALPHA SWEEP
 
-numbers=(0.10)
+numbers=(0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09)
 
 for alpha in "${numbers[@]}"
 do
 
-    # python -m citl train CIFAR10UB mnasnet_small \
-    #     "--augmentation-policy-path=./policies/cifar10.yaml" \
-    #     "--selectively-backpropagate" \
-    #     "--alpha=${alpha}" \
-    #     "--lr-method=plateau"
+    python -m citl train CIFAR10UB mnasnet_small \
+        "--augmentation-policy-path=./policies/cifar10.yaml" \
+        "--selectively-backpropagate" \
+        "--alpha=${alpha}" \
+        "--loss-function=cross_entropy" \
+        "--lr-method=plateau"
 
     # python -m citl train CelebA resnet18 \
     #     "--selectively-backpropagate" \
