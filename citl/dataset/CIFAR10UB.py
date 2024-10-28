@@ -69,7 +69,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
         augmentation_policy_path,
         batch_size: int = 128,
         data_dir: str = PATH_DATASETS,
-        noise_level: float = 0.3,
+        noise_level: float = 0.0,
     ):
         super().__init__()
 
@@ -133,7 +133,7 @@ class CIFAR10UBDataModule(L.LightningDataModule):
 
         if stage == "test" or stage is None:
             self.cifar_test = CIFAR10(
-                self.data_dir, train=False, transform=self.transform
+                self.data_dir, train=False, transform=self.transform, noise_level=0.0
             )
             self.cifar_test.set_indices([], range(len(self.cifar_test)))
 

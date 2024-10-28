@@ -71,6 +71,7 @@ class ConformalClassifier:
         self.val_labels.append(y)
 
     def fit(self, alphas=[0.1]):
+
         self.cp_examples = torch.concatenate(self.cp_examples, axis=0)
         self.val_labels = torch.concatenate(self.val_labels, axis=0)
 

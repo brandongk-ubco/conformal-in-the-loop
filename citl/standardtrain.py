@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import NeptuneLogger, TensorBoardLogger
-from pytorch_lightning.tuner import Tuner
 from timm import create_model
 from torch import nn
 
@@ -30,12 +29,14 @@ def standardtrain(
     augmentation_policy_path: str = "./policies/noop.yaml",
     lr_method: str = "plateau",
     lr: float = 5e-4,
+    noise_level: float = 0.0,
+    loss_function: str = "cross_entropy",
 ):
     L.seed_everything(42, workers=True)
     torch.set_float32_matmul_precision("high")
 
     assert os.path.exists(augmentation_policy_path)
-    datamodule = Dataset.get(dataset)(augmentation_policy_path)
+    datamodule = Dataset.get(dataset)(augmentation_policy_path, noise_level=noise_level)
 
     if datamodule.task == "classification":
         net = create_model(
@@ -63,6 +64,7 @@ def standardtrain(
         num_classes=datamodule.num_classes,
         lr_method=lr_method,
         lr=lr,
+        loss_function=loss_function,
     )
 
     policy, _ = os.path.splitext(os.path.basename(augmentation_policy_path))
@@ -86,11 +88,13 @@ def standardtrain(
         )
         trainer_logger.experiment["parameters/architecture"] = model_name
         trainer_logger.experiment["parameters/dataset"] = dataset
-        trainer_logger.experiment["parameters/greysacale"] = greyscale
         trainer_logger.experiment["parameters/augmentation_policy"] = policy
+        trainer_logger.experiment["parameters/loss_function"] = loss_function
+        trainer_logger.experiment["parameters/noise_level"] = noise_level
         trainer_logger.experiment["sys/tags"].add(model_name)
         trainer_logger.experiment["sys/tags"].add(dataset)
         trainer_logger.experiment["sys/tags"].add("Standard")
+        trainer_logger.experiment["sys/tags"].add(loss_function)
 
     model_callback_config = {
         "filename": "{epoch}-{val_loss:.3f}",
